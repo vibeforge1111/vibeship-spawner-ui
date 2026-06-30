@@ -1,12 +1,8 @@
-import { sanitizedChildEnv } from "./sanitized-env";
 import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { env as privateEnv } from '$env/dynamic/private';
 import { spawnerStateDir } from './spawner-state';
 import {
@@ -15,8 +11,6 @@ import {
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
-
-const execFileAsync = promisify(execFile);
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -240,42 +234,11 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   }
   if (record.action === 'loop') {
     const chipKey = String(record.payload.chipKey ?? '');
-    const rounds = Math.max(1, Number(record.payload.rounds ?? 2));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
-    const builderRepo =
-      process.env.SPARK_BUILDER_REPO || path.resolve(process.cwd(), '..', 'spark-intelligence-builder');
-    const home =
-      process.env.SPARK_BUILDER_HOME || path.join(homedir(), '.spark', 'state', 'spark-intelligence');
-    const python = process.env.SPARK_BUILDER_PYTHON || 'python';
-    try {
-      const { stdout } = await execFileAsync(python, [
-        '-m',
-        'spark_intelligence.cli',
-        'loops',
-        'run',
-        '--home',
-        home,
-        '--chip',
-        chipKey,
-        '--rounds',
-        String(rounds),
-        '--json',
-      ], {
-        cwd: builderRepo,
-        env: sanitizedChildEnv({ PYTHONIOENCODING: "utf-8" }),
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 900_000,
-      });
-      const parsed = JSON.parse(stdout);
-      return {
-        ok: Boolean(parsed.ok),
-        summary: parsed.ok
-          ? `loop ${chipKey} rounds=${parsed.rounds_completed}`
-          : `loop error: ${parsed.error || 'unknown'}`,
-      };
-    } catch (err: unknown) {
-      return { ok: false, summary: `loop exec failed: ${errorMessage(err)}` };
-    }
+    return {
+      ok: false,
+      summary: 'scheduled loop fire requires fresh Governor authority; stored schedule authority is evidence only'
+    };
   }
   return { ok: false, summary: `unknown action ${record.action}` };
 }
