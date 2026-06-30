@@ -1,9 +1,13 @@
 import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
+import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertNativeGovernorHarnessAuthority,
@@ -11,6 +15,16 @@ import {
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
+import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
+
+const execFileAsync = promisify(execFile);
+
+/** Truncate and redact sensitive content from response text for safe logging. */
+function redactSensitiveSnippet(text: string, maxLength = 120): string {
+  if (!text) return '';
+  const truncated = text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
+  return truncated.replace(/(?:token|key|secret|password|authorization)['":\s]+[^\s,}]+/gi, '[REDACTED]');
+}
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
