@@ -32,6 +32,10 @@ function errorCode(error: unknown): string | null {
     : null;
 }
 
+function redactSensitiveSnippet(s: string): string {
+  return s.replace(/password|token|secret|key/gi, '[REDACTED]').slice(0, 200);
+}
+
 const TICK_MS = 30_000;
 
 function schedulesFile(): string {
