@@ -20,6 +20,9 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const { request } = event;
 		const body = await request.json();
+		if (!body || typeof body !== 'object' || Array.isArray(body)) {
+			return json({ error: 'Invalid JSON body' }, { status: 400 });
+		}
 		const { instanceId, toolName, args, requestId } = body as {
 			instanceId: string;
 			toolName: string;
@@ -65,6 +68,12 @@ export const POST: RequestHandler = async (event) => {
 			result,
 		});
 	} catch (error) {
+		if (error instanceof SyntaxError) {
+			return json(
+				{ error: 'Invalid JSON body' },
+				{ status: 400 }
+			);
+		}
 		if (error instanceof HarnessAuthorityError) {
 			return json(
 				{
@@ -78,7 +87,7 @@ export const POST: RequestHandler = async (event) => {
 		console.error('[API] Tool call error:', error);
 		return json(
 			{
-				error: error instanceof Error ? error.message : 'Tool call failed',
+				error: 'Tool call failed',
 			},
 			{ status: 500 }
 		);
