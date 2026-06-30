@@ -5,15 +5,13 @@ import { randomBytes } from 'node:crypto';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
 import { spawnerStateDir } from './spawner-state';
-<<<<<<< HEAD
 import {
   assertNativeGovernorHarnessAuthority,
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
-=======
->>>>>>> 9e82db7 (fix(scheduler): block _fire execution for mission and loop actions)
+
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -290,7 +288,6 @@ async function _tick(): Promise<void> {
       continue;
     }
     if (new Date(rec.nextFireAt) > now) continue;
-<<<<<<< HEAD
     dueSchedules.push({ rec, index: i });
   }
 
@@ -316,15 +313,7 @@ async function _tick(): Promise<void> {
   for (let i = 0; i < dueSchedules.length; i++) {
     const { rec } = dueSchedules[i];
     const settled = results[i];
-=======
-    if (_firingIds.has(rec.id)) {
-      // Previous fire for this schedule is still in flight (e.g. long subprocess).
-      // Skip so we do not relaunch the mission or emit a duplicate relay message.
-      continue;
-    }
-    const nextFireAt = _computeNext(rec.cron, rec.timezone);
-    _firingIds.add(rec.id);
->>>>>>> 9e82db7 (fix(scheduler): block _fire execution for mission and loop actions)
+
     try {
       if (settled.status === 'fulfilled') {
         const result = settled.value;
