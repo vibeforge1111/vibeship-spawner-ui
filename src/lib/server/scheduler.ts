@@ -1,13 +1,9 @@
 import { logger } from '$lib/utils/logger';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { homedir } from 'node:os';
 import { randomBytes } from 'node:crypto';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { Cron } from 'croner';
 import { env as privateEnv } from '$env/dynamic/private';
-import { resolveSparkRunProjectPath } from './spark-run-workspace';
 import { spawnerStateDir } from './spawner-state';
 import {
   assertNativeGovernorHarnessAuthority,
@@ -15,16 +11,6 @@ import {
   type HarnessAuthorityVerdict
 } from './harness-authority';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
-import { parseJsonResponse, responseTextSnippet } from '$lib/services/http-response';
-
-const execFileAsync = promisify(execFile);
-
-/** Truncate and redact sensitive content from response text for safe logging. */
-function redactSensitiveSnippet(text: string, maxLength = 120): string {
-  if (!text) return '';
-  const truncated = text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
-  return truncated.replace(/(?:token|key|secret|password|authorization)['":\s]+[^\s,}]+/gi, '[REDACTED]');
-}
 
 function _envVar(name: string): string | undefined {
   const v = (privateEnv as Record<string, string | undefined>)[name];
@@ -241,37 +227,6 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
   if (record.action === 'mission') {
     const goal = String(record.payload.goal ?? '');
     if (!goal) return { ok: false, summary: 'mission has no goal' };
-    const requestId = `sched-${record.id}-${Date.now()}`;
-    const baseUrl = (_envVar('SPAWNER_UI_URL') || 'http://127.0.0.1:3333').replace(/\/$/, '');
-    const requestedProjectPath =
-      typeof record.payload.projectPath === 'string' ? record.payload.projectPath : undefined;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
-    let res: Response;
-    try {
-      res = await fetch(`${baseUrl}/api/spark/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          goal,
-          chatId: String(record.chatId || 'scheduler'),
-          userId: 'scheduler',
-          requestId,
-          projectPath: resolveSparkRunProjectPath(requestedProjectPath),
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    if (!res.ok) {
-      const detail = redactSensitiveSnippet(await responseTextSnippet(res, 200));
-      return {
-        ok: false,
-        summary: `spark/run HTTP ${res.status}${detail ? `: ${detail}` : ''}`,
-      };
-    }
-    const body = await parseJsonResponse<{ success?: boolean; missionId?: string; error?: string }>(res, {});
     return {
       ok: false,
       summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only'
