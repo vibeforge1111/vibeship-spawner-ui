@@ -21,7 +21,6 @@
 		MissionControlProjectLineage,
 		MissionControlProviderResultSummary
 	} from '$lib/types/mission-control';
-	import { isMissionControlTerminalStatus } from '$lib/types/mission-control';
 	import {
 		completionEvidenceTooltipForDisplay,
 		summarizeCompletionEvidenceForDisplay
@@ -125,12 +124,14 @@
 		}
 	}
 
+	const TERMINAL_EVENT_TYPES = new Set(['mission_completed', 'mission_failed', 'mission_cancelled']);
+
 	function startMissionControlPolling(): void {
 		if (missionControlPoller) return;
 		missionControlPoller = setInterval(() => {
 			void loadMissionControlStatus().then(() => {
 				const latestEntry = missionControl?.recent?.[0];
-				if (latestEntry && isMissionControlTerminalStatus(latestEntry.status)) {
+				if (latestEntry && TERMINAL_EVENT_TYPES.has(latestEntry.eventType)) {
 					stopMissionControlPolling();
 				}
 			});
