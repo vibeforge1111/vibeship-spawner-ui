@@ -44,13 +44,17 @@ export const POST: RequestHandler = async (event) => {
 		const result = await executeMissionControlAction({ missionId, action, source, executionAuthority, dispatchAuthority });
 		return json(result);
 	} catch (error) {
+		console.error('[MissionControl] Command failed:', error);
 		if (error instanceof HarnessAuthorityError) {
-			return json({ ok: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
+			return json(
+				{ ok: false, code: error.code, error: error.message, authority: error.verdict },
+				{ status: error.status }
+			);
 		}
 		return json(
 			{
 				ok: false,
-				error: error instanceof Error ? error.message : 'Mission control command failed'
+				error: 'Internal error'
 			},
 			{ status: 500 }
 		);

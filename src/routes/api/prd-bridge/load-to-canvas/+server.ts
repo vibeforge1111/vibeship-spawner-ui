@@ -680,7 +680,7 @@ export const POST: RequestHandler = async (event) => {
 			missionControlAccess
 		});
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		return json({ error: message }, { status: 500 });
+		console.error('[PRDBridge] Load to canvas failed:', error);
+		return json({ error: 'Internal error' }, { status: 500 });
 	}
 };

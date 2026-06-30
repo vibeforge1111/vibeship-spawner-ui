@@ -557,12 +557,13 @@ export const POST: RequestHandler = async (event) => {
 					source: fullEvent.source || 'unknown'
 				});
 			} catch (err) {
-				const message = err instanceof Error ? err.message : 'Invalid PRD analysis result';
+				const message = 'Invalid PRD analysis result';
+				console.error('[EventBridge] Failed to store PRD result:', err);
 				await appendPrdTrace(fullEvent.data.requestId, 'events_rejected_complete', {
 					source: fullEvent.source || 'unknown',
 					error: message
 				});
-				return json({ error: message }, { status: err instanceof PathSafetyError ? err.status : 400 });
+				return json({ error: 'Invalid PRD analysis result' }, { status: err instanceof PathSafetyError ? err.status : 400 });
 			}
 		}
 

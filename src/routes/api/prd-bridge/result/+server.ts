@@ -212,13 +212,11 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true, requestId, ...(traceRef ? { traceRef } : {}) });
 	} catch (error) {
 		if (error instanceof PathSafetyError) {
-			return json({ error: error.message }, { status: error.status });
+			return json({ error: 'Invalid request' }, { status: error.status });
 		}
 		if (error instanceof Error && error.message.startsWith('Invalid PRD analysis result:')) {
-			return json({ error: error.message }, { status: 400 });
-		}
-		if (error instanceof Error && error.message.startsWith('Invalid PRD analysis result: requestId mismatch')) {
-			return json({ error: error.message }, { status: 400 });
+			console.error('[PRDBridge] Invalid result:', error);
+			return json({ error: 'Invalid PRD analysis result' }, { status: 400 });
 		}
 
 		console.error('[PRDBridge] Error storing result:', error);
@@ -270,7 +268,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ found: true, requestId, result });
 	} catch (error) {
 		if (error instanceof PathSafetyError) {
-			return json({ error: error.message }, { status: error.status });
+			return json({ error: 'Invalid request' }, { status: error.status });
 		}
 
 		console.error('[PRDBridge] Error reading result:', error);

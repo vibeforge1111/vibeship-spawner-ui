@@ -396,16 +396,19 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
 		}
 		if (error instanceof CapabilityPolicyError) {
+			console.error('[SparkRun] Capability policy error:', error);
 			return json(
-				{ success: false, error: error.message, code: error.code },
+				{ success: false, error: 'Access denied', code: error.code },
 				{ status: error.status }
 			);
 		}
 		if (error instanceof SparkRunWorkspaceError) {
-			return json({ success: false, error: error.message }, { status: error.status });
+			console.error('[SparkRun] Workspace error:', error);
+			return json({ success: false, error: 'Workspace error' }, { status: error.status });
 		}
+		console.error('[SparkRun] Run failed:', error);
 		return json(
-			{ success: false, error: error instanceof Error ? error.message : 'Spark run failed' },
+			{ success: false, error: 'Internal error' },
 			{ status: 500 }
 		);
 	}

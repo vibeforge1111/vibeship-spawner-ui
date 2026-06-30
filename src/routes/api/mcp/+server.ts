@@ -132,7 +132,7 @@ export const POST: RequestHandler = async (event) => {
 		console.error('[API] MCP connection error:', error);
 		return json(
 			{
-				error: error instanceof Error ? error.message : 'Connection failed',
+				error: 'Internal error',
 			},
 			{ status: 500 }
 		);
@@ -192,7 +192,7 @@ export const DELETE: RequestHandler = async (event) => {
 		console.error('[API] MCP disconnect error:', error);
 		return json(
 			{
-				error: error instanceof Error ? error.message : 'Disconnect failed',
+				error: 'Internal error',
 			},
 			{ status: 500 }
 		);

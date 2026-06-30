@@ -131,10 +131,11 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (error) {
 		if (error instanceof AccessExecutionPolicyError) {
+			console.error('[AccessExecution] Policy error:', error);
 			return json(
 				{
 					success: false,
-					error: error.message,
+					error: 'Access policy restriction',
 					action: error.action,
 					confirmationRequired: true
 				},
@@ -142,10 +143,11 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		console.error('[AccessExecution] Action failed:', error);
 		return json(
 			{
 				success: false,
-				error: error instanceof Error ? error.message : 'Access execution action failed'
+				error: 'Internal error'
 			},
 			{ status: 400 }
 		);

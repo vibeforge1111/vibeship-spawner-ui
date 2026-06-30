@@ -78,7 +78,7 @@ export const POST: RequestHandler = async (event) => {
 		console.error('[API] Tool call error:', error);
 		return json(
 			{
-				error: error instanceof Error ? error.message : 'Tool call failed',
+				error: 'Internal error',
 			},
 			{ status: 500 }
 		);

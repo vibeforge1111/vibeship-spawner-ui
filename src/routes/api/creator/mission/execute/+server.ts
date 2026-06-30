@@ -62,16 +62,17 @@ export const POST: RequestHandler = async (event) => {
 			trace: result.trace
 		});
 	} catch (error) {
+		console.error('[CreatorMission] Execution failed:', error);
 		if (error instanceof HarnessAuthorityError) {
 			return json(
-				{ ok: false, error: error.message, code: error.code, authority: error.verdict },
+				{ ok: false, code: error.code, error: error.message, authority: error.verdict },
 				{ status: error.status }
 			);
 		}
 		const message = error instanceof Error ? error.message : 'creator mission execution failed';
 		const status = /read-only|stage-only|already published/i.test(message) ? 409 : 500;
 		return json(
-			{ ok: false, error: message },
+			{ ok: false, error: /read-only|stage-only|already published/i.test(message) ? message : 'Internal error' },
 			{ status }
 		);
 	}

@@ -66,13 +66,11 @@ export const POST: RequestHandler = async (event) => {
 			reply: missionControlReply(parsed, result)
 		});
 	} catch (error) {
-		if (error instanceof HarnessAuthorityError) {
-			return json({ ok: false, error: error.message, code: error.code, authority: error.verdict }, { status: error.status });
-		}
+		console.error('[MissionControl] Discord command failed:', error);
 		return json(
 			{
 				ok: false,
-				error: error instanceof Error ? error.message : 'Mission control discord command failed',
+				error: 'Internal error',
 				help: 'Use: mission <status|pause|resume|kill> <missionId>'
 			},
 			{ status: 500 }

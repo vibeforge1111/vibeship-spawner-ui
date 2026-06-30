@@ -74,7 +74,8 @@ function emitValidationProgress(
 
 function emitValidationFailed(trace: CreatorMissionTrace, error: unknown) {
 	const validationTask = trace.tasks.find((task) => task.id === 'creator-validation') || trace.tasks[0];
-	const message = error instanceof Error ? error.message : 'creator mission validation failed';
+	const message = 'creator mission validation failed';
+	console.error('[CreatorMission] Validation failed:', error);
 	void relayMissionControlEvent({
 		type: 'task_failed',
 		missionId: trace.mission_id,
@@ -231,7 +232,7 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 		return json(
-			{ ok: false, error: error instanceof Error ? error.message : 'creator mission validation failed' },
+			{ ok: false, error: 'Internal error' },
 			{ status: 500 }
 		);
 	}
