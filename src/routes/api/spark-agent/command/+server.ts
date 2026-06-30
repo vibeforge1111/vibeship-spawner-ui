@@ -106,7 +106,7 @@ export const POST: RequestHandler = async (event) => {
 		console.error('[SparkAgent] Command failed:', error);
 		if (error instanceof HarnessAuthorityError) {
 			return json(
-				{ success: false, code: error.code, error: error.message, verdict: error.verdict },
+				{ success: false, code: error.code, error: error.message, authority: error.verdict },
 				{ status: error.status }
 			);
 		}

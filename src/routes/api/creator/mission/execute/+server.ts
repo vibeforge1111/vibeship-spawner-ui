@@ -65,13 +65,14 @@ export const POST: RequestHandler = async (event) => {
 		console.error('[CreatorMission] Execution failed:', error);
 		if (error instanceof HarnessAuthorityError) {
 			return json(
-				{ ok: false, code: error.code, error: error.message, verdict: error.verdict },
+				{ ok: false, code: error.code, error: error.message, authority: error.verdict },
 				{ status: error.status }
 			);
 		}
-		const status = 500;
+		const message = error instanceof Error ? error.message : 'creator mission execution failed';
+		const status = /read-only|stage-only|already published/i.test(message) ? 409 : 500;
 		return json(
-			{ ok: false, error: 'Internal error' },
+			{ ok: false, error: /read-only|stage-only|already published/i.test(message) ? message : 'Internal error' },
 			{ status }
 		);
 	}
