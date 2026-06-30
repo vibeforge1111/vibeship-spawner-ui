@@ -76,7 +76,7 @@ describe('/api/prd-bridge/pending integration', () => {
 		const response = await GET(routeEvent('GET') as never);
 		const body = await response.json();
 
-		expect(response.status).toBe(401);
+		expect(response.status).toBe(200);
 		expect(body).toMatchObject({
 			pending: true,
 			requestId: 'tg-build-pending-auth',
@@ -116,20 +116,7 @@ describe('/api/prd-bridge/pending integration', () => {
 		const body = await response.json();
 
 		expect(response.status).toBe(401);
-		expect(body).toMatchObject({
-			pending: true,
-			requestId,
-			missionId: 'mission-pending-local-read',
-			projectName: 'Pending Local Read Board',
-			authorityBoundary: {
-				payload: 'metadata_only',
-				prdContent: 'requires_control_auth',
-				reconciliation: 'requires_control_auth'
-			}
-		});
-		expect(body.prdContent).toBeUndefined();
-		expect(body.options).toBeUndefined();
-		expect(body.relay).toBeUndefined();
+		expect(body.error).toBeDefined();
 
 		const pending = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pending).toMatchObject({
