@@ -260,6 +260,20 @@ export const POST: RequestHandler = async (event) => {
 		eventBridge.emit(missionCreatedEvent);
 		void relayMissionControlEvent(missionCreatedEvent);
 
+		const dispatchBinding = {
+			requestId: relayAuthorityRequestId(relay).requestId ?? executionPack.missionId
+		};
+		const executionAuthority = resolveExecutionAuthority(
+			body?.executionAuthority,
+			body?.execution_authority
+		);
+		const authority = assertNativeGovernorHarnessAuthority({
+			authority: executionAuthority,
+			toolName: 'spawner.dispatch',
+			ownerSystem: 'spawner-ui',
+			mutationClass: 'dispatch_task'
+		});
+
 		const result = await providerRuntime.dispatch({
 			executionPack,
 			apiKeys: mergedApiKeys,
