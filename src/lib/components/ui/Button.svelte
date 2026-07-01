@@ -7,6 +7,8 @@
 		disabled?: boolean;
 		loading?: boolean;
 		type?: 'button' | 'submit' | 'reset';
+		title?: string;
+		ariaLabel?: string;
 		onclick?: (e: MouseEvent) => void;
 		class?: string;
 		children: Snippet;
@@ -18,6 +20,8 @@
 		disabled = false,
 		loading = false,
 		type = 'button',
+		title = '',
+		ariaLabel = '',
 		onclick,
 		class: className = '',
 		children
@@ -40,6 +44,8 @@
 	{type}
 	{disabled}
 	{onclick}
+	title={title || undefined}
+	aria-label={ariaLabel || undefined}
 	class="{variantClasses[variant]} {sizeClasses[size]} {className}"
 	class:opacity-50={disabled || loading}
 	class:cursor-not-allowed={disabled || loading}

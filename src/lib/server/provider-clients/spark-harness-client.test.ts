@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { executeSparkHarnessRequest } from './spark-harness-client';
@@ -22,6 +22,7 @@ const provider: MultiLLMProviderConfig = {
 
 const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
 const originalAllowHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalSparkHome = process.env.SPARK_HOME;
 const originalSparkWorkspaceRoot = process.env.SPARK_WORKSPACE_ROOT;
 const originalAllowExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 const cleanupPaths: string[] = [];
@@ -35,6 +36,8 @@ function restoreEnv(name: string, value: string | undefined): void {
 }
 
 beforeEach(() => {
+	process.env.SPARK_HOME = mkdtempSync(join(tmpdir(), 'spark-harness-test-home-'));
+	cleanupPaths.push(process.env.SPARK_HOME);
 	delete process.env.SPARK_CODEX_SANDBOX;
 	delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
 	delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
@@ -44,6 +47,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
 	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalAllowHighAgencyWorkers);
+	restoreEnv('SPARK_HOME', originalSparkHome);
 	restoreEnv('SPARK_WORKSPACE_ROOT', originalSparkWorkspaceRoot);
 	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalAllowExternalProjectPaths);
 	for (const path of cleanupPaths.splice(0)) {
@@ -283,6 +287,58 @@ describe('spark-harness-client', () => {
 		expect(result.success).toBe(true);
 		expect(submittedSandbox).toBe('danger-full-access');
 		expect(events.some((event) => event.type === 'worker_high_agency_approved')).toBe(true);
+	});
+
+	it('uses persisted Spawner Level 5 guardrails when the worker process env is stale', async () => {
+		const sparkHome = process.env.SPARK_HOME as string;
+		const moduleEnv = join(sparkHome, 'config', 'modules');
+		mkdirSync(moduleEnv, { recursive: true });
+		writeFileSync(
+			join(moduleEnv, 'spawner-ui.env'),
+			[
+				'SPARK_ALLOW_HIGH_AGENCY_WORKERS=1',
+				'SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1',
+				'SPARK_CODEX_SANDBOX=danger-full-access',
+				''
+			].join('\n'),
+			'utf8'
+		);
+		process.env.SPARK_CODEX_SANDBOX = 'workspace-write';
+		let submittedSandbox = '';
+		const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+			const value = String(url);
+			if (value.endsWith('/v1/tasks')) {
+				const submittedBody = JSON.parse(String(init?.body || '{}')) as {
+					context?: { _codex_sandbox?: string };
+				};
+				submittedSandbox = submittedBody.context?._codex_sandbox || '';
+				return new Response(JSON.stringify({ task_id: 'spark-task-persisted-level5' }), { status: 200 });
+			}
+			if (value.endsWith('/v1/tasks/spark-task-persisted-level5')) {
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						result: {
+							output: JSON.stringify({ status: 'completed', changed_files: ['operator-check.txt'] }),
+							metadata: { changed_files: ['operator-check.txt'] }
+						}
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const result = await executeSparkHarnessRequest({
+			provider,
+			missionId: 'mission-spark-persisted-level5',
+			prompt: 'Build a tiny local operator check.',
+			onEvent: () => {}
+		});
+
+		expect(result.success).toBe(true);
+		expect(submittedSandbox).toBe('danger-full-access');
 	});
 
 	it('rejects prompt-extracted workspaces outside the Spark workspace root by default', async () => {

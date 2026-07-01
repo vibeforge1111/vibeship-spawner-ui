@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { POST as startSession } from './session/start/+server';
 import { POST as command } from './command/+server';
 import { GET as events } from './events/+server';
@@ -11,6 +14,12 @@ import {
 	buildClientTurnIntentVNextAuthority,
 	type SparkClientMutationClass
 } from '$lib/services/harness-authority-client';
+
+const originalSparkHome = process.env.SPARK_HOME;
+const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+const originalHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+const cleanupPaths: string[] = [];
 
 async function readChunk(response: Response, timeoutMs = 1000): Promise<string> {
 	if (!response.body) {
@@ -60,9 +69,30 @@ function commandVNextAuthority(input: {
 	});
 }
 
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
+function isolateDefaultWorkerEnv(): void {
+	const sparkHome = mkdtempSync(join(tmpdir(), 'spark-agent-route-home-'));
+	cleanupPaths.push(sparkHome);
+	process.env.SPARK_HOME = sparkHome;
+	delete process.env.SPARK_CODEX_SANDBOX;
+	delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+	delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+}
+
 afterEach(() => {
 	getConnections().clear();
 	sparkAgentBridge.resetForTests();
+	restoreEnv('SPARK_HOME', originalSparkHome);
+	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalHighAgencyWorkers);
+	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalExternalProjectPaths);
+	for (const path of cleanupPaths.splice(0)) {
+		rmSync(path, { recursive: true, force: true });
+	}
 });
 
 describe('/api/spark-agent integration', () => {
@@ -433,6 +463,7 @@ describe('/api/spark-agent integration', () => {
 	});
 
 	it('does not accept caller-supplied worker command templates through the API', async () => {
+		isolateDefaultWorkerEnv();
 		let observedCommandTemplate = '';
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			observedCommandTemplate = context.commandTemplate;

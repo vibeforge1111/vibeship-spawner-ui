@@ -11,18 +11,18 @@ export class SparkRunWorkspaceError extends Error {
 	}
 }
 
-export function sparkWorkspaceRoot(): string {
+export function sparkWorkspaceRoot(envRecord: Record<string, string | undefined> = process.env): string {
 	return resolve(
-		process.env.SPARK_WORKSPACE_ROOT?.trim() ||
-			process.env.SPAWNER_WORKSPACE_ROOT?.trim() ||
-			(process.env.SPARK_HOME?.trim()
-			? join(process.env.SPARK_HOME.trim(), 'workspaces')
+		envRecord.SPARK_WORKSPACE_ROOT?.trim() ||
+			envRecord.SPAWNER_WORKSPACE_ROOT?.trim() ||
+			(envRecord.SPARK_HOME?.trim()
+			? join(envRecord.SPARK_HOME.trim(), 'workspaces')
 			: join(homedir(), '.spark', 'workspaces'))
 	);
 }
 
-export function externalProjectPathsAllowed(): boolean {
-	const value = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS?.trim().toLowerCase();
+export function externalProjectPathsAllowed(envRecord: Record<string, string | undefined> = process.env): boolean {
+	const value = envRecord.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS?.trim().toLowerCase();
 	return value === '1' || value === 'true' || value === 'yes';
 }
 
@@ -68,17 +68,24 @@ export function resolveContainedPath(baseDir: string, targetPath: string, label 
 	return targetResolved;
 }
 
-export function resolveWorkspaceContainedPath(targetPath: string, label = 'Project path'): string {
-	return resolveContainedPath(sparkWorkspaceRoot(), targetPath, label);
+export function resolveWorkspaceContainedPath(
+	targetPath: string,
+	label = 'Project path',
+	envRecord: Record<string, string | undefined> = process.env
+): string {
+	return resolveContainedPath(sparkWorkspaceRoot(envRecord), targetPath, label);
 }
 
-export function resolveSparkRunProjectPath(projectPath?: string): string {
+export function resolveSparkRunProjectPath(
+	projectPath?: string,
+	envRecord: Record<string, string | undefined> = process.env
+): string {
 	const requested = projectPath?.trim();
-	const defaultRoot = sparkWorkspaceRoot();
+	const defaultRoot = sparkWorkspaceRoot(envRecord);
 	const rawPath = requested || join(defaultRoot, 'default');
 	const absolutePath = isAbsolute(rawPath) ? resolve(rawPath) : resolve(defaultRoot, rawPath);
 
-	const containedPath = externalProjectPathsAllowed()
+	const containedPath = externalProjectPathsAllowed(envRecord)
 		? absolutePath
 		: resolveContainedPath(defaultRoot, absolutePath, 'Project path');
 

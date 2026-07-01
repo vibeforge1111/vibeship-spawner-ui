@@ -29,6 +29,31 @@ import { GET, OPTIONS, POST } from './+server';
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 
 let testSpawnerDir: string | null = null;
+const harnessProofRef = 'turn:sha256:0123456789abcdef';
+const harnessProofCapsule = {
+	schema: 'spark.harness_proof.v1',
+	turnRef: harnessProofRef,
+	route: 'spawner.build',
+	owner: 'spawner-ui',
+	intent: { kind: 'spawner.build', confidence: 'high', noExecution: false },
+	authority: {
+		decision: 'allowed',
+		contract: 'spark.turn_intent.v1',
+		riskTier: 'execute',
+		reasonSummary: 'Telegram build dispatch was authorized by fresh Harness authority.'
+	},
+	governor: { decision: 'allow', verified: true },
+	execution: { status: 'started', tool: 'spawner.run', mutationClass: 'launches_mission' },
+	reply: { delivered: true, shape: 'natural', rawReasonsHidden: true },
+	joins: {
+		telegram: 'joined',
+		builder: 'not_applicable',
+		spawner: 'joined',
+		provider: 'not_applicable',
+		memory: 'not_applicable',
+		voice: 'not_applicable'
+	}
+};
 
 afterEach(async () => {
 	delete process.env.SPAWNER_STATE_DIR;
@@ -177,7 +202,11 @@ describe('/api/events auth', () => {
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
 		const requestId = 'events-state-dir-test';
 		const traceRef = 'trace:spawner-prd:events-state-dir-test';
-		await writeFile(path.join(testSpawnerDir, 'pending-request.json'), JSON.stringify({ requestId, traceRef }), 'utf-8');
+		await writeFile(
+			path.join(testSpawnerDir, 'pending-request.json'),
+			JSON.stringify({ requestId, traceRef, harnessProofRef, proofCapsule: harnessProofCapsule }),
+			'utf-8'
+		);
 
 		const response = await POST(
 			createEvent('https://example.com/api/events', {
@@ -215,6 +244,20 @@ describe('/api/events auth', () => {
 		expect(storedJson.metadata.traceRef).toBe(traceRef);
 		expect(stored).not.toContain('executionPrompt');
 		expect(stored).not.toContain('Store result consistently.');
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows).toHaveLength(1);
+		expect(traceRows[0]).toMatchObject({
+			requestId,
+			event: 'events_received_complete',
+			traceRef,
+			harnessProofRef,
+			proofCapsule: { schema: 'spark.harness_proof.v1', turnRef: harnessProofRef }
+		});
+		expect(traceRows[0]).not.toHaveProperty('proofStorage');
+		expect(traceRows[0]).not.toHaveProperty('proofStatus');
 	});
 
 	it('applies base tier skill gating when PRD results arrive through events', async () => {

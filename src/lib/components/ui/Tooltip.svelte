@@ -5,6 +5,7 @@
 		text: string;
 		position?: 'top' | 'bottom' | 'left' | 'right';
 		delay?: number;
+		wrap?: boolean;
 		class?: string;
 		children: Snippet;
 	}
@@ -13,6 +14,7 @@
 		text,
 		position = 'top',
 		delay = 200,
+		wrap = false,
 		class: className = '',
 		children
 	}: Props = $props();
@@ -60,10 +62,10 @@
 	{@render children()}
 
 	{#if visible && text}
-		<div
-			class="tooltip {positionClasses[position]} whitespace-nowrap"
-			role="tooltip"
-		>
+			<div
+				class="tooltip {positionClasses[position]} {wrap ? 'max-w-xs whitespace-normal text-left leading-5' : 'whitespace-nowrap'}"
+				role="tooltip"
+			>
 			{text}
 			<span class="absolute w-0 h-0 border-4 {arrowClasses[position]}"></span>
 		</div>

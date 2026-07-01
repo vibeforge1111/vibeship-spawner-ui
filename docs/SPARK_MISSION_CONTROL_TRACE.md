@@ -51,10 +51,21 @@ sequenceDiagram
 | `GET /api/pipeline-loader` | Canvas | Consumes pending Canvas pipeline loads | `pending-load.json` | clears pending load |
 | `POST /api/dispatch` | Canvas execution | Starts provider runtime from the execution pack | execution pack, env provider config | Mission Control events, provider runtime session state |
 | `GET /api/dispatch?missionId=...` | Canvas/trace | Provider execution status | provider runtime snapshots/results | none |
-| `POST /api/events` | Providers/Codex/Claude/ZAI bridge | Receives task and mission lifecycle events | event body, `last-canvas-load.json` for relay enrichment | Mission Control relay state, provider terminal reconciliation |
+| `POST /api/events` | Providers/Codex/Claude/ZAI bridge | Receives task, mission lifecycle, and PRD analysis completion events | event body, `pending-request.json` for PRD trace proof, `last-canvas-load.json` for relay enrichment | Mission Control relay state, provider terminal reconciliation, `prd-auto-trace.jsonl` for PRD completion/error events |
 | `GET /api/mission-control/board` | Kanban | Bucketed board view | Mission Control relay state, provider results | none |
 | `GET /api/mission-control/status?missionId=...` | Status/debug | Raw relay snapshot for a mission | Mission Control relay state, provider results | none |
 | `GET /api/mission-control/trace?missionId=...&requestId=...` | Telegram/Canvas/Kanban tracer | One stitched answer for where a mission is right now | pending request, analysis result, last Canvas load, board, dispatch, provider results | none |
+
+## PRD Trace Proof Continuity
+
+Every `prd-auto-trace.jsonl` row written by `/api/prd-bridge/write` or PRD completion/error handling in `/api/events` must carry request, trace, and proof-continuity metadata.
+
+- When Telegram supplies a valid `harnessProofRef`, Spawner preserves that ref on every row for the request.
+- PRD completion/error events join proof from the incoming event first, then the matching `pending-request.json` record, so provider callbacks do not create fresh source proof gaps after the initial Telegram build request has been authorized.
+- When no fresh Harness proof is available, Spawner writes a compact `spark.harness_proof.v1` gap capsule with `proofStatus: missing_harness_authority`, `proofStorage: source_gap_capsule`, `authority.contract: none`, and `governor.verified: false`.
+- Historical rows can be repaired with `npm run trace:repair:prd-proof -- --json`. The repair writes `proofStorage: legacy_gap_capsule`, keeps raw paths redacted, and creates a `.proof-backup` before changing the trace file.
+
+Gap capsules are not authorization. They make old or under-proven execution-plane rows inspectable while keeping the missing-authority gap visible to the control-proof audit.
 
 ## Persistent State Files
 

@@ -208,10 +208,10 @@ function operatorLane(allowed: boolean): AccessExecutionLane {
 			? 'Level 5 is explicitly enabled for this trusted local install.'
 			: 'Level 5 is blocked until high-agency worker guardrails are explicitly enabled.',
 		userMessage: allowed
-			? 'Whole-computer operator mode is available, but I will still prefer a sandbox unless the task truly needs broader access.'
+			? 'Whole-computer operator mode is available for tasks that need trusted local machine access.'
 			: 'Whole-computer access is not enabled. I can use the safer Level 4 sandbox path instead.',
 		sparkCliAction: allowed ? 'spark access status --level 5' : 'spark access setup --level 5 --enable-high-agency',
-		runPolicy: allowed ? 'auto_read_only' : 'explicit_opt_in',
+		runPolicy: allowed ? 'auto_safe' : 'explicit_opt_in',
 		confirmation: allowed ? undefined : 'Enable whole-computer operator mode',
 		rollback: allowed ? 'spark access disable-level5' : undefined
 	};

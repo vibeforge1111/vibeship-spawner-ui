@@ -24,6 +24,7 @@ import { formatTaskQualityGuidance } from '$lib/server/task-quality-rubric';
 import { formatVerificationPlanGuidance, generateVerificationPlan } from '$lib/server/verification-plan-generator';
 import { enrichBrief, isSparseUnderstandingClarification } from '$lib/server/brief-enricher';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { resolveCodexSandbox } from '$lib/server/high-agency-workers';
 import {
 	projectStoredPrdAnalysisResultForTier,
 	type StoredPrdAnalysisResult
@@ -34,12 +35,15 @@ import {
 	normalizeCapabilityProposalPacket
 } from '$lib/server/capability-proposal-packet';
 import { extractTraceRef, normalizeTraceRef, traceRefFromMissionId } from '$lib/server/trace-ref';
+import { sanitizePrdTraceDetails } from '$lib/server/prd-trace-redaction';
+import { prdTraceProofContinuityFields } from '$lib/server/prd-trace-proof-continuity';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 import {
 	HarnessAuthorityError,
 	assertNativeGovernorHarnessAuthority,
 	resolveExecutionAuthority
 } from '$lib/server/harness-authority';
+import { getLoopEngineeringChipDetail } from '$lib/server/loop-engineering-registry';
 
 function getPrdBridgePaths() {
 	const spawnerDir = spawnerStateDir();
@@ -65,6 +69,7 @@ const AUTO_ANALYSIS_TIMEOUT_MS =
 		: DEFAULT_AUTO_ANALYSIS_TIMEOUT_MS;
 const DEFAULT_PROVISIONAL_DIRECT_ANALYSIS_MS = 10_000;
 const DEFAULT_PROVISIONAL_ADVANCED_ANALYSIS_MS = 45_000;
+const PRD_WRITING_LOOP_CHIP_ID = 'domain-chip-prd-writing-proof-loop';
 
 function normalizeRequestId(requestId: string): string {
 	return requestId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -79,11 +84,27 @@ function missionIdFromRequestId(requestId: string): string {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		const { prdAutoTraceFile } = getPrdBridgePaths();
+		const harnessProofRef = await harnessProofRefForRequest(requestId, details);
+		const proofCapsule = await harnessProofCapsuleForRequest(requestId, details);
+		const safeDetails = sanitizePrdTraceDetails(details);
+		delete safeDetails.harnessProofRef;
+		delete safeDetails.harness_proof_ref;
+		delete safeDetails.harnessProofCapsule;
+		delete safeDetails.proofCapsule;
+		delete safeDetails.proof_capsule;
+		const proofContinuity = prdTraceProofContinuityFields({
+			requestId,
+			event,
+			details: safeDetails,
+			harnessProofRef,
+			proofCapsule
+		});
 		const row = {
 			ts: new Date().toISOString(),
 			requestId,
 			event,
-			...details
+			...safeDetails,
+			...proofContinuity
 		};
 		await appendFile(prdAutoTraceFile, `${JSON.stringify(row)}\n`, 'utf-8');
 	} catch {
@@ -93,6 +114,55 @@ async function appendPrdTrace(requestId: string, event: string, details: Record<
 
 function traceRefDetails(traceRef: string | null | undefined): Record<string, string> {
 	return traceRef ? { traceRef } : {};
+}
+
+function normalizeHarnessProofRef(value: unknown): string | null {
+	const proofRef = typeof value === 'string' ? value.trim() : '';
+	return /^turn:sha256:[a-f0-9]{16}$/.test(proofRef) ? proofRef : null;
+}
+
+function proofRefDetails(harnessProofRef: string | null | undefined): Record<string, string> {
+	return harnessProofRef ? { harnessProofRef } : {};
+}
+
+function proofCapsuleDetails(proofCapsule: unknown): Record<string, unknown> {
+	return proofCapsule && typeof proofCapsule === 'object' && !Array.isArray(proofCapsule)
+		? { proofCapsule }
+		: {};
+}
+
+function proofCapsuleFromRecord(record: Record<string, unknown>): unknown {
+	return record.harnessProofCapsule ?? record.proofCapsule ?? record.proof_capsule;
+}
+
+async function harnessProofRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = normalizeHarnessProofRef(details.harnessProofRef ?? details.harness_proof_ref);
+	if (explicit) return explicit;
+	try {
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return normalizeHarnessProofRef(pending.harnessProofRef ?? pending.harness_proof_ref);
+	} catch {
+		return null;
+	}
+}
+
+async function harnessProofCapsuleForRequest(requestId: string, details: Record<string, unknown>): Promise<unknown> {
+	const explicit = proofCapsuleFromRecord(details);
+	if (explicit) return explicit;
+	try {
+		const { pendingRequestFile } = getPrdBridgePaths();
+		if (!existsSync(pendingRequestFile)) return null;
+		const pendingRaw = await readFile(pendingRequestFile, 'utf-8');
+		const pending = JSON.parse(pendingRaw) as Record<string, unknown>;
+		if (pending.requestId !== requestId) return null;
+		return proofCapsuleFromRecord(pending);
+	} catch {
+		return null;
+	}
 }
 
 async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
@@ -151,6 +221,55 @@ type AuthorityVerdictV1 = {
 	sourceRepo: 'spawner-ui';
 	reasonCode: string;
 };
+
+type PrdWritingLoopLessonBlock = {
+	chipId: string;
+	source: 'loop-engineering-chip';
+	lessons: string[];
+	reloopTriggers: string[];
+	evidenceRefs: string[];
+	runtimeState: string | null;
+	readinessLabel: string;
+	promptBlock: string;
+};
+
+async function resolvePrdWritingLoopLessonBlock(): Promise<PrdWritingLoopLessonBlock | null> {
+	const detail = await getLoopEngineeringChipDetail(PRD_WRITING_LOOP_CHIP_ID).catch(() => null);
+	const lessons = detail?.runtime.distilledLessons.filter((lesson) => lesson.trim()).slice(0, 6) ?? [];
+	if (!detail || lessons.length === 0) return null;
+	const reloopTriggers = detail.runtime.reloopTriggers.filter((trigger) => trigger.trim()).slice(0, 4);
+	const evidenceRefs = [
+		'distilled-runtime/prd-writing-fast-path.json',
+		...detail.summary.evidenceRefs,
+		...detail.distillations.flatMap((item) => item.evidenceRefs)
+	]
+		.filter((ref, index, refs): ref is string => typeof ref === 'string' && ref.trim().length > 0 && refs.indexOf(ref) === index)
+		.slice(0, 8);
+	const promptBlock = [
+		'Loop Engineering PRD Writing lesson:',
+		`- Source chip: ${PRD_WRITING_LOOP_CHIP_ID}.`,
+		`- Readiness: ${detail.readiness.label}. This reuses evaluator-backed guidance; it is not a new benchmark, loop, activation, or publication.`,
+		...lessons.map((lesson) => `- ${lesson}`),
+		reloopTriggers.length ? `- Re-loop only when: ${reloopTriggers.join('; ')}.` : ''
+	]
+		.filter(Boolean)
+		.join('\n');
+	return {
+		chipId: PRD_WRITING_LOOP_CHIP_ID,
+		source: 'loop-engineering-chip',
+		lessons,
+		reloopTriggers,
+		evidenceRefs,
+		runtimeState: detail.runtime.state,
+		readinessLabel: detail.readiness.label,
+		promptBlock
+	};
+}
+
+function shouldApplyPrdWritingLoopLesson(content: string, buildMode: 'direct' | 'advanced_prd'): boolean {
+	if (buildMode === 'advanced_prd') return true;
+	return /\b(?:prd|product requirements?|requirements doc|acceptance criteria|non-goals|rollout risk|rollback plan|benchmark plan)\b/i.test(content);
+}
 
 export function _buildAuthorityVerdict(input: {
 	traceRef?: string | null;
@@ -467,6 +586,26 @@ export async function _buildFallbackAnalysisResult(
 	buildLane: BuildLane = buildMode === 'advanced_prd' ? 'advanced_prd' : 'direct'
 ): Promise<Record<string, unknown>> {
 	const content = existsSync(paths.pendingPrdFile) ? await readFile(paths.pendingPrdFile, 'utf-8') : '';
+	const loopLessonBlock = shouldApplyPrdWritingLoopLesson(content, buildMode)
+		? await resolvePrdWritingLoopLessonBlock()
+		: null;
+	const loopLessonPromptLines = loopLessonBlock ? ['', loopLessonBlock.promptBlock] : [];
+	const loopLessonResultFields = loopLessonBlock
+		? {
+				metadata: {
+					loopEngineering: {
+						appliedChipId: loopLessonBlock.chipId,
+						source: loopLessonBlock.source,
+						reusedDistilledLessons: loopLessonBlock.lessons,
+						reloopTriggers: loopLessonBlock.reloopTriggers,
+						evidenceRefs: loopLessonBlock.evidenceRefs,
+						runtimeState: loopLessonBlock.runtimeState,
+						readinessLabel: loopLessonBlock.readinessLabel,
+						noLoopRerun: true
+					}
+				}
+			}
+		: {};
 	if (isSparseUnderstandingClarification(content)) {
 		const validSkills = new Set((await getTierSkills(tier)).map((skill) => skill.id));
 		const selectSkills = (skills: string[]) => skills.filter((skill) => validSkills.has(skill)).slice(0, 5);
@@ -524,8 +663,12 @@ export async function _buildFallbackAnalysisResult(
 			},
 			tasks,
 			skills,
-			executionPrompt:
-				'Original user request: did you understand what i said\n\nAcknowledge that Spark understood the user is asking whether the previous message was understood, then ask for the missing concrete build details: audience, core workflow, saved memory, and vibe. Do not invent product scope.'
+			executionPrompt: [
+				'Original user request: did you understand what i said',
+				'Acknowledge that Spark understood the user is asking whether the previous message was understood, then ask for the missing concrete build details: audience, core workflow, saved memory, and vibe. Do not invent product scope.',
+				...loopLessonPromptLines
+			].join('\n\n'),
+			...loopLessonResultFields
 		};
 	}
 
@@ -618,9 +761,11 @@ export async function _buildFallbackAnalysisResult(
 				'Preserve the requested visible copy exactly.',
 				'Use minimal embedded CSS only.',
 				'Do not create any other files, package files, JavaScript workflow, localStorage persistence, checklist UI, dashboard, navigation, or extra product features.',
+				...loopLessonPromptLines,
 				'Original brief:',
 				content
-			].join('\n')
+			].join('\n'),
+			...loopLessonResultFields
 		};
 	}
 	const singleFileStaticApp = isSingleFileStaticHtmlApp(content);
@@ -942,11 +1087,13 @@ export async function _buildFallbackAnalysisResult(
 			singleFileStaticApp
 				? 'Hard file constraint: create only index.html as the runnable deliverable; embed CSS and JavaScript in that file and do not split into styles.css or app.js unless the original brief explicitly asks for separate files.'
 				: '',
+			...loopLessonPromptLines,
 			'Original brief:',
 			content
 		]
 			.filter(Boolean)
-			.join('\n')
+			.join('\n'),
+		...loopLessonResultFields
 	};
 }
 
@@ -1276,6 +1423,7 @@ async function buildPromptParts(
 	workflowGuidance: string;
 	bundleBlock: string;
 	missionSizeBlock: string;
+	prdWritingLoopBlock: string;
 }> {
 	const planningContract =
 		buildMode === 'advanced_prd'
@@ -1324,12 +1472,24 @@ async function buildPromptParts(
 					'Do NOT invent IDs. Do NOT use shorthand like "frontend" when "frontend-engineer" or a more specific specialist exists.'
 				].join('\n');
 
+	const prdWritingLoopLesson = briefBody && shouldApplyPrdWritingLoopLesson(briefBody, buildMode)
+		? await resolvePrdWritingLoopLessonBlock()
+		: null;
+	const prdWritingLoopBlock = prdWritingLoopLesson?.promptBlock ?? '';
 	const workflowGuidance = [
 		'Workflow shape requirements:',
 		'- Tasks must form a DAG. Set dependencies only when a task TRULY blocks another.',
 		'- Independent tasks must run in parallel — do NOT add a dependency just to make the graph linear.',
 		'- A 6-task plan should usually have 2-3 dependency layers, not 6.',
 		'- Each task needs at least one acceptance criterion and one verification command.',
+		...(prdWritingLoopBlock
+			? [
+					'',
+					prdWritingLoopBlock,
+					'- Apply this lesson to the generated PRD/task plan when it fits the user request.',
+					'- Do not claim that a benchmark, self-improvement loop, schedule, activation, publication, or approval ran during this PRD analysis turn.'
+				]
+			: []),
 		'',
 		formatTaskQualityGuidance()
 	].join('\n');
@@ -1358,7 +1518,7 @@ async function buildPromptParts(
 		}
 	}
 
-	return { planningContract, tierBlock, workflowGuidance, bundleBlock, missionSizeBlock };
+	return { planningContract, tierBlock, workflowGuidance, bundleBlock, missionSizeBlock, prdWritingLoopBlock };
 }
 
 async function buildCodexPrompt(
@@ -1370,7 +1530,8 @@ async function buildCodexPrompt(
 	tier: SkillTier,
 	paths: ReturnType<typeof getPrdBridgePaths>,
 	bundleBlock?: string,
-	missionSizeBlock?: string
+	missionSizeBlock?: string,
+	prdWritingLoopBlock?: string
 ): Promise<string> {
 	const planningContract =
 		buildMode === 'advanced_prd'
@@ -1445,6 +1606,13 @@ async function buildCodexPrompt(
 		'',
 		...(missionSizeBlock ? [missionSizeBlock, ''] : []),
 		...(bundleBlock ? [bundleBlock, ''] : []),
+		...(prdWritingLoopBlock
+			? [
+					prdWritingLoopBlock,
+					'Apply this evaluator-backed PRD Writing lesson when shaping the plan. Do not claim a benchmark, self-improvement loop, schedule, activation, publication, or approval ran during this PRD analysis turn.',
+					''
+				]
+			: []),
 		'Configured bridge paths:',
 		`- State directory: ${paths.spawnerDir}`,
 		`- Pending request metadata: ${paths.pendingRequestFile}`,
@@ -1493,7 +1661,7 @@ export function _resolvePrdCodexCommandTemplate(
 	if (explicit) return explicit.includes('{model}') ? explicit.replace('{model}', model) : explicit;
 	const profile = (env.SPAWNER_PRD_CODEX_PROFILE || 'speed').trim();
 	const profileArg = profile ? ` --profile ${profile}` : '';
-	return `codex exec --model ${model}${profileArg} --sandbox workspace-write`;
+	return `codex exec --model ${model}${profileArg} --sandbox ${resolveCodexSandbox(env)}`;
 }
 
 async function startAutoAnalysis(
@@ -1560,7 +1728,8 @@ async function startAutoAnalysis(
 			tier,
 			paths,
 			parts.bundleBlock,
-			parts.missionSizeBlock
+			parts.missionSizeBlock,
+			parts.prdWritingLoopBlock
 		);
 		const missionId = `prd-auto-${normalizeRequestId(requestId)}`;
 
@@ -1647,7 +1816,7 @@ export const POST: RequestHandler = async (event) => {
 		if (!body || typeof body !== 'object' || Array.isArray(body)) {
 			return json({ error: 'Malformed JSON body' }, { status: 400 });
 		}
-		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, projectPathEvidence, project_path_evidence, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, executionAuthority, execution_authority } =
+		const { content, requestId, projectName, options, chatId, userId, buildMode, buildModeReason, buildLane, build_lane, buildLaneReason, build_lane_reason, telegramRelay, tier, forceDispatch, runnerCapability, runner_capability, projectPathEvidence, project_path_evidence, capabilityProposalPacket, capability_proposal_packet, traceRef, trace_ref, harnessProofRef, harness_proof_ref, harnessProofCapsule, proofCapsule, proof_capsule, executionAuthority, execution_authority } =
 			body as Record<string, any>;
 		const normalizedBuildMode = normalizeBuildMode(buildMode);
 		const normalizedBuildLane = normalizeBuildLane(buildLane ?? build_lane, normalizedBuildMode, options);
@@ -1667,6 +1836,8 @@ export const POST: RequestHandler = async (event) => {
 		}
 		const missionId = missionIdFromRequestId(requestId);
 		const normalizedTraceRef = normalizeTraceRef(traceRef ?? trace_ref) || traceRefFromMissionId(missionId);
+		const normalizedHarnessProofRef = normalizeHarnessProofRef(harnessProofRef ?? harness_proof_ref);
+		const normalizedHarnessProofCapsule = harnessProofCapsule ?? proofCapsule ?? proof_capsule ?? null;
 		const resolvedExecutionAuthority = resolveExecutionAuthority(executionAuthority, execution_authority);
 		const authority = assertNativeGovernorHarnessAuthority({
 			authority: resolvedExecutionAuthority,
@@ -1707,6 +1878,8 @@ export const POST: RequestHandler = async (event) => {
 		if (enrichmentBypass.bypass) {
 			await appendPrdTrace(requestId, 'brief_enrichment_bypassed', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				...proofRefDetails(normalizedHarnessProofRef),
+				...proofCapsuleDetails(normalizedHarnessProofCapsule),
 				reason: enrichmentBypass.reason,
 				buildMode: normalizedBuildMode,
 				buildLane: normalizedBuildLane
@@ -1715,6 +1888,8 @@ export const POST: RequestHandler = async (event) => {
 		if (enrichment.wasEnriched) {
 			await appendPrdTrace(requestId, 'brief_enriched', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				...proofRefDetails(normalizedHarnessProofRef),
+				...proofCapsuleDetails(normalizedHarnessProofCapsule),
 				originalLength: content.length,
 				enrichedLength: finalContent.length,
 				addedAssumptions: enrichment.addedAssumptions,
@@ -1735,6 +1910,8 @@ export const POST: RequestHandler = async (event) => {
 		})) {
 			await appendPrdTrace(requestId, 'clarification_requested', {
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				...proofRefDetails(normalizedHarnessProofRef),
+				...proofCapsuleDetails(normalizedHarnessProofCapsule),
 				questionCount: enrichment.openQuestions.length,
 				briefLength: content.length
 			});
@@ -1755,6 +1932,8 @@ export const POST: RequestHandler = async (event) => {
 					buildMode: normalizedBuildMode,
 					buildLane: normalizedBuildLane,
 					...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+					...proofRefDetails(normalizedHarnessProofRef),
+					...proofCapsuleDetails(normalizedHarnessProofCapsule),
 					...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
 					...(normalizedCapabilityProposalPacket ? { capabilityProposalPacket: normalizedCapabilityProposalPacket } : {}),
 					...(normalizedCapabilityProposalSummary ? { capabilityProposalSummary: normalizedCapabilityProposalSummary } : {}),
@@ -1802,6 +1981,8 @@ export const POST: RequestHandler = async (event) => {
 			prdPath: paths.pendingPrdFile,
 			status: 'pending',
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			...proofRefDetails(normalizedHarnessProofRef),
+			...proofCapsuleDetails(normalizedHarnessProofCapsule),
 			options: {
 				includeSkills: options?.includeSkills !== false,
 				includeMCPs: options?.includeMCPs !== false
@@ -1820,6 +2001,8 @@ export const POST: RequestHandler = async (event) => {
 							requestId,
 							tier: normalizedTier,
 							...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+							...proofRefDetails(normalizedHarnessProofRef),
+							...proofCapsuleDetails(normalizedHarnessProofCapsule),
 							goal: content.slice(0, 500),
 							...(projectLineage ? { projectLineage } : {}),
 							...(normalizedRunnerCapability ? { runnerCapability: normalizedRunnerCapability } : {}),
@@ -1831,6 +2014,8 @@ export const POST: RequestHandler = async (event) => {
 		await writeFile(paths.pendingRequestFile, JSON.stringify(requestMeta, null, 2), 'utf-8');
 		await appendPrdTrace(requestId, 'request_written', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			...proofRefDetails(normalizedHarnessProofRef),
+			...proofCapsuleDetails(normalizedHarnessProofCapsule),
 			projectName: requestMeta.projectName,
 			buildMode: requestMeta.buildMode,
 			buildLane: requestMeta.buildLane,
@@ -1860,6 +2045,7 @@ export const POST: RequestHandler = async (event) => {
 			data: {
 				requestId,
 				...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+				...proofRefDetails(normalizedHarnessProofRef),
 				buildMode: requestMeta.buildMode,
 				buildLane: requestMeta.buildLane,
 				buildLaneReason: requestMeta.buildLaneReason,
@@ -1890,6 +2076,8 @@ export const POST: RequestHandler = async (event) => {
 				);
 		await appendPrdTrace(requestId, 'authority_verdict_evaluated', {
 			...(normalizedTraceRef ? { traceRef: normalizedTraceRef } : {}),
+			...proofRefDetails(normalizedHarnessProofRef),
+			...proofCapsuleDetails(normalizedHarnessProofCapsule),
 			authorityVerdict: _buildAuthorityVerdict({
 				traceRef: normalizedTraceRef,
 				autoStarted: auto.started,

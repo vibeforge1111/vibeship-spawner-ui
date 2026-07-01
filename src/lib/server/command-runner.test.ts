@@ -41,7 +41,7 @@ describe('command-runner path validation', () => {
 		mkdirSync(project, { recursive: true });
 		process.env.SPARK_WORKSPACE_ROOT = root;
 		delete process.env.SPAWNER_WORKSPACE_ROOT;
-		delete process.env.SPARK_HOME;
+		process.env.SPARK_HOME = tempDir('spark-runner-home-');
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		expect(validateProjectPath(project)).toEqual({ valid: true });
@@ -53,7 +53,7 @@ describe('command-runner path validation', () => {
 		const external = tempDir('spark-runner-external-');
 		process.env.SPARK_WORKSPACE_ROOT = root;
 		delete process.env.SPAWNER_WORKSPACE_ROOT;
-		delete process.env.SPARK_HOME;
+		process.env.SPARK_HOME = tempDir('spark-runner-home-');
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		const result = validateProjectPath(external);
@@ -69,7 +69,7 @@ describe('command-runner path validation', () => {
 		cleanupPaths.push(sibling);
 		process.env.SPARK_WORKSPACE_ROOT = root;
 		delete process.env.SPAWNER_WORKSPACE_ROOT;
-		delete process.env.SPARK_HOME;
+		process.env.SPARK_HOME = tempDir('spark-runner-home-');
 		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
 
 		expect(validateProjectPath(sibling).valid).toBe(false);

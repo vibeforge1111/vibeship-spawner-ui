@@ -28,7 +28,7 @@
 	}: Props = $props();
 </script>
 
-<div class="w-full">
+<div class="min-w-0 w-full">
 	{#if label}
 		<label for={id} class="block text-xs text-text-tertiary mb-1 font-mono">{label}</label>
 	{/if}

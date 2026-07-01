@@ -7,6 +7,7 @@ import { eventBridge } from '$lib/services/event-bridge';
 import { resolveCliBinary } from '$lib/server/cli-resolver';
 import {
 	assertHighAgencyWorkerAllowed,
+	effectiveLevel5Env,
 	highAgencyWorkersAllowed,
 	HIGH_AGENCY_WORKERS_ENV,
 	resolveCodexSandbox
@@ -351,9 +352,12 @@ function isBinaryAvailable(binaryName: ProviderCommand['binary']): boolean {
 	return resolveCliBinary(binaryName) !== null;
 }
 
-export function prepareProviderWorkingDirectory(workingDirectory?: string): string {
+export function prepareProviderWorkingDirectory(
+	workingDirectory?: string,
+	envRecord: Record<string, string | undefined> = process.env
+): string {
 	if (workingDirectory && workingDirectory.trim()) {
-		const cwd = resolveSparkRunProjectPath(workingDirectory);
+		const cwd = resolveSparkRunProjectPath(workingDirectory, envRecord);
 		mkdirSync(cwd, { recursive: true });
 		return cwd;
 	}
@@ -441,6 +445,13 @@ export function parseProviderCommand(providerId: SparkAgentProviderId, commandTe
 
 function commandUsesHighAgencyMode(command: ProviderCommand): boolean {
 	return command.binary === 'codex' && (command.args.includes('--yolo') || command.args.includes('danger-full-access'));
+}
+
+export function providerWorkerEnvForCommand(
+	command: ProviderCommand,
+	envRecord: Record<string, string | undefined> = process.env
+): Record<string, string | undefined> {
+	return commandUsesHighAgencyMode(command) ? effectiveLevel5Env(envRecord) : envRecord;
 }
 
 function blockedProviderResponse(response: string | undefined): string | null {
@@ -1488,8 +1499,10 @@ class SparkAgentBridgeService {
 			let timeout: ReturnType<typeof setTimeout> | null = null;
 			let killTimeout: ReturnType<typeof setTimeout> | null = null;
 			let cwd: string;
+			let workerEnv: Record<string, string | undefined>;
 			try {
-				cwd = prepareProviderWorkingDirectory(context.workingDirectory);
+				workerEnv = providerWorkerEnvForCommand(command);
+				cwd = prepareProviderWorkingDirectory(context.workingDirectory, workerEnv);
 			} catch (error) {
 				resolve({
 					success: false,
@@ -1500,7 +1513,7 @@ class SparkAgentBridgeService {
 			const child = spawnHidden(command.resolvedBinary, command.args, {
 				cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
-				env: { ...process.env }
+				env: { ...process.env, ...workerEnv }
 			});
 
 			const workerState = this.workerSessions.get(context.sessionId);

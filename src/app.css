@@ -332,7 +332,7 @@
 
   /* Input fields — SPARK 5px radius */
   .input {
-    @apply w-full bg-bg-secondary border border-surface-border px-4 py-2.5 text-text-primary placeholder:text-text-tertiary transition-all duration-fast font-mono rounded-md;
+    @apply w-full min-w-0 max-w-full bg-bg-secondary border border-surface-border px-4 py-2.5 text-text-primary placeholder:text-text-tertiary transition-all duration-fast font-mono rounded-md;
   }
 
   .input:hover {
@@ -345,7 +345,7 @@
 
   /* Panels */
   .panel {
-    @apply bg-bg-secondary border border-surface-border rounded-lg;
+    @apply min-w-0 max-w-full bg-bg-secondary border border-surface-border rounded-lg;
   }
 
   /* Status badges (sharp corners) */

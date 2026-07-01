@@ -13,6 +13,8 @@ import { controlQueryApiKeysAllowed, enforceRateLimit, requireControlAuth } from
 import { relayMissionControlEvent } from '$lib/server/mission-control-relay';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { projectStoredPrdAnalysisResultForTier } from '$lib/server/prd-analysis-result-schema';
+import { prdTraceProofContinuityFields } from '$lib/server/prd-trace-proof-continuity';
+import { sanitizePrdTraceDetails } from '$lib/server/prd-trace-redaction';
 import { spawnerStateDir } from '$lib/server/spawner-state';
 import { extractTraceRef } from '$lib/server/trace-ref';
 import { logger } from '$lib/utils/logger';
@@ -93,20 +95,60 @@ function createAuthCookieHeader(request: Request): string | null {
 async function appendPrdTrace(requestId: string, event: string, details: Record<string, unknown> = {}): Promise<void> {
 	try {
 		const traceRef = await traceRefForRequest(requestId, details);
+		const harnessProofRef = await harnessProofRefForRequest(requestId, details);
+		const proofCapsule = await harnessProofCapsuleForRequest(requestId, details);
+		const safeDetails = sanitizePrdTraceDetails({ ...details });
+		delete safeDetails.harnessProofRef;
+		delete safeDetails.harness_proof_ref;
+		delete safeDetails.harnessProofCapsule;
+		delete safeDetails.proofCapsule;
+		delete safeDetails.proof_capsule;
 		await appendFile(
 			getPrdAutoTraceFile(),
 			`${JSON.stringify({
 				ts: new Date().toISOString(),
 				requestId,
 				event,
-				...details,
-				...(traceRef ? { traceRef, trace_ref: traceRef } : {})
+				...safeDetails,
+				...(traceRef ? { traceRef, trace_ref: traceRef } : {}),
+				...prdTraceProofContinuityFields({
+					requestId,
+					event,
+					details: {
+						...safeDetails,
+						...(traceRef ? { traceRef } : {})
+					},
+					harnessProofRef,
+					proofCapsule
+				})
 			})}\n`,
 			'utf-8'
 		);
 	} catch {
 		// Trace failures are non-fatal.
 	}
+}
+
+function proofCapsuleFromRecord(record: Record<string, unknown>): unknown {
+	return record.harnessProofCapsule ?? record.proofCapsule ?? record.proof_capsule;
+}
+
+function normalizeHarnessProofRef(value: unknown): string | null {
+	return typeof value === 'string' && /^turn:sha256:[a-f0-9]{16}$/.test(value.trim()) ? value.trim() : null;
+}
+
+async function harnessProofRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {
+	const explicit = normalizeHarnessProofRef(details.harnessProofRef ?? details.harness_proof_ref);
+	if (explicit) return explicit;
+	const pending = await pendingRequestForRequest(requestId);
+	return pending ? normalizeHarnessProofRef(pending.harnessProofRef ?? pending.harness_proof_ref) : null;
+}
+
+async function harnessProofCapsuleForRequest(requestId: string, details: Record<string, unknown>): Promise<unknown> {
+	const explicit = proofCapsuleFromRecord(details);
+	if (explicit) return explicit;
+	const pending = await pendingRequestForRequest(requestId);
+	return pending ? proofCapsuleFromRecord(pending) : null;
 }
 
 async function traceRefForRequest(requestId: string, details: Record<string, unknown>): Promise<string | null> {

@@ -63,6 +63,19 @@
 		<polyline points="20 6 9 17 4 12" />
 	{:else if name === 'play'}
 		<polygon points="5 3 19 12 5 21 5 3" />
+	{:else if name === 'pause'}
+		<rect x="6" y="4" width="4" height="16" />
+		<rect x="14" y="4" width="4" height="16" />
+	{:else if name === 'refresh-cw'}
+		<polyline points="23 4 23 10 17 10" />
+		<polyline points="1 20 1 14 7 14" />
+		<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+		<path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+	{:else if name === 'calendar'}
+		<rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+		<line x1="16" y1="2" x2="16" y2="6" />
+		<line x1="8" y1="2" x2="8" y2="6" />
+		<line x1="3" y1="10" x2="21" y2="10" />
 	{:else if name === 'scan'}
 		<path d="M3 7V5a2 2 0 0 1 2-2h2" />
 		<path d="M17 3h2a2 2 0 0 1 2 2v2" />

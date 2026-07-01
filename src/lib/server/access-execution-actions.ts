@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { spawnHidden, terminateProcessTree } from './hidden-process';
 import type { AccessExecutionLaneId, AccessRunPolicy } from './access-execution-lanes';
+import { effectiveLevel5Env } from './high-agency-workers';
 
 export type AccessExecutionActionId =
 	| 'workspace_setup'
@@ -208,7 +209,7 @@ async function defaultAccessExecutionRunner(
 		let settled = false;
 		const child = spawnHidden(command, args, {
 			cwd: options.cwd,
-			env: { ...process.env, FORCE_COLOR: '0', CI: 'true' }
+			env: { ...effectiveLevel5Env(process.env), FORCE_COLOR: '0', CI: 'true' }
 		});
 
 		const timer = setTimeout(() => {

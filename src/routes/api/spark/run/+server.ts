@@ -9,6 +9,7 @@ import { enforceRateLimit, requireControlAuth } from '$lib/server/mcp-auth';
 import { providerRuntime } from '$lib/server/provider-runtime';
 import { applyProviderEnvOverrides } from '$lib/server/provider-config';
 import { resolveSparkRunProjectPath, SparkRunWorkspaceError } from '$lib/server/spark-run-workspace';
+import { effectiveLevel5Env } from '$lib/server/high-agency-workers';
 import { normalizeTier, type SkillTier } from '$lib/server/skill-tiers';
 import {
 	missionControlPathForMission,
@@ -137,7 +138,7 @@ function createSparkMission(
 	const chatId = body.chatId?.trim() || null;
 	const userId = body.userId?.trim() || 'spark-telegram';
 	const telegramRelay = normalizeTelegramRelay(body.telegramRelay);
-	const projectPath = resolveSparkRunProjectPath(body.projectPath);
+	const projectPath = resolveSparkRunProjectPath(body.projectPath, effectiveLevel5Env());
 	const sparkProjectPath = body.promptMode === 'simple' && !body.projectPath?.trim() ? null : projectPath;
 	const traceRef = normalizeTraceRef(body.traceRef ?? body.trace_ref) || `trace:spawner-run:${missionId}`;
 	const missionName = body.missionName?.trim();

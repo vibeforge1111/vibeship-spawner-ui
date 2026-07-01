@@ -29,6 +29,7 @@ import {
 	type HarnessAuthorityVerdict
 } from '$lib/server/harness-authority';
 import { spawnerStateDir } from '$lib/server/spawner-state';
+import { resolveCodexSandbox } from '$lib/server/high-agency-workers';
 
 interface PrdAutoSkill {
 	id?: string;
@@ -119,9 +120,10 @@ function safeCodexCliToken(value: string | undefined, fallback: string): string 
 }
 
 function missionCodexSandbox(envRecord: Record<string, string | undefined>): string {
-	const requested = envRecord.SPARK_MISSION_CODEX_SANDBOX?.trim() || 'workspace-write';
+	const requested = envRecord.SPARK_MISSION_CODEX_SANDBOX?.trim();
+	if (!requested) return resolveCodexSandbox(envRecord);
 	return ['read-only', 'workspace-write', 'danger-full-access'].includes(requested)
-		? requested
+		? resolveCodexSandbox({ ...envRecord, SPARK_CODEX_SANDBOX: requested })
 		: 'workspace-write';
 }
 

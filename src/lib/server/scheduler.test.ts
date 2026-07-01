@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { _computeNext, _schedulerInternalsForTests, _validTimezone, listSchedules } from './scheduler';
+import { listLoopSchedules, stageBenchmarkCase, stageLoopSchedule } from './loop-engineering-control-plane';
 
 // Regression test for the scheduled-mission timezone mismatch: _computeNext built
 // `new Cron(cron, { paused: true })` with no timezone, so cron fields were
@@ -114,29 +115,30 @@ describe('scheduler reliability guards', () => {
     await expect(readFile(path.join(dir, backups[0]), 'utf-8')).resolves.toBe('{bad json');
   });
 
-  it('surfaces bounded HTTP status details for scheduled mission fires', async () => {
+  it('does not mint authority for arbitrary scheduled mission fires', async () => {
     process.env.SPAWNER_UI_URL = 'http://scheduler.test';
     vi.stubGlobal('fetch', vi.fn(async () => new Response('upstream failed Bearer placeholder-token-value', { status: 502 })));
 
     const result = await _schedulerInternalsForTests.fire(record());
 
     expect(result.ok).toBe(false);
-    expect(result.summary).toContain('spark/run HTTP 502');
-    expect(result.summary).toContain('[redacted]');
+    expect(result.summary).toContain('scheduled mission fire requires fresh Governor authority');
     expect(result.summary).not.toContain('placeholder-token-value');
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('continues with an error summary when scheduled mission success responses are not JSON', async () => {
+  it('continues with an authority summary when scheduled mission success responses would be unsafe', async () => {
     process.env.SPAWNER_UI_URL = 'http://scheduler.test';
     vi.stubGlobal('fetch', vi.fn(async () => new Response('not-json', { status: 200 })));
 
     await expect(_schedulerInternalsForTests.fire(record())).resolves.toEqual({
       ok: false,
-      summary: 'error: unknown',
+      summary: 'scheduled mission fire requires fresh Governor authority; stored schedule authority is evidence only',
     });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('increments fireCount and persists crash status when a tick fire throws', async () => {
+  it('increments fireCount and persists blocked mission status when a tick fires an unsafe mission', async () => {
     const dir = await tempStateDir();
     await writeFile(
       path.join(dir, 'schedules.json'),
@@ -151,7 +153,57 @@ describe('scheduler reliability guards', () => {
 
     const [saved] = await listSchedules();
     expect(saved.fireCount).toBe(1);
-    expect(saved.lastStatus).toBe('crash: network down');
+    expect(saved.lastStatus).toContain('fail: scheduled mission fire requires fresh Governor authority');
     expect(saved.nextFireAt).toBeTruthy();
+  });
+
+  it('executes pre-staged Loop Engineering schedules without using external network', async () => {
+    const dir = await tempStateDir();
+    const stagedCase = await stageBenchmarkCase({
+      chipKey: 'domain-chip-prd-writing-proof-loop',
+      kind: 'visible',
+      prompt: 'Write a PRD for an approval-gated scheduler.',
+      expectedBehavior: 'Include owner, affected users, success metric, acceptance criteria, risks, rollback, and evidence refs.'
+    });
+    const staged = await stageLoopSchedule({
+      chipKey: 'domain-chip-prd-writing-proof-loop',
+      name: 'PRD Writing timed loop',
+      mode: 'round_count',
+      roundLimit: 2,
+      benchmarkCaseIds: [stagedCase.caseRecord.id],
+      sourceSurface: 'spawner'
+    });
+    await writeFile(
+      path.join(dir, 'schedules.json'),
+      JSON.stringify({
+        schedules: [
+          record({
+            id: 'sched-loop-engineering',
+            action: 'loop',
+            payload: {
+              chipKey: 'domain-chip-prd-writing-proof-loop',
+              loopScheduleId: staged.schedule.id
+            }
+          })
+        ]
+      }, null, 2),
+      'utf-8'
+    );
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('network should not be used');
+    }));
+
+    await _schedulerInternalsForTests.tick();
+
+    const [saved] = await listSchedules();
+    expect(saved.fireCount).toBe(1);
+    expect(saved.lastStatus).toContain('ok: completed private loop');
+    const [loopSchedule] = await listLoopSchedules('domain-chip-prd-writing-proof-loop');
+    expect(loopSchedule).toMatchObject({
+      id: staged.schedule.id,
+      benchmarkCaseIds: [stagedCase.caseRecord.id],
+      runCount: 1
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

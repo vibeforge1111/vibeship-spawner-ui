@@ -1,6 +1,6 @@
 import type { BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
-import { assertHighAgencyWorkerAllowed, resolveCodexSandbox } from '$lib/server/high-agency-workers';
+import { assertHighAgencyWorkerAllowed, effectiveLevel5Env, resolveCodexSandbox } from '$lib/server/high-agency-workers';
 import { resolveSparkRunProjectPath } from '$lib/server/spark-run-workspace';
 import { sparkHarnessTimeoutMs } from '$lib/server/timeout-config';
 import type { ProviderResult } from './types';
@@ -66,7 +66,8 @@ export async function executeSparkHarnessRequest(options: SparkHarnessOptions): 
 	try {
 		const executorModel = resolveCodexExecutorModel();
 		const codexSandbox = resolveCodexSandbox();
-		const resolvedWorkspace = requestedWorkspace ? resolveSparkRunProjectPath(requestedWorkspace) : undefined;
+		const workerEnv = codexSandbox === 'danger-full-access' ? effectiveLevel5Env() : process.env;
+		const resolvedWorkspace = requestedWorkspace ? resolveSparkRunProjectPath(requestedWorkspace, workerEnv) : undefined;
 		if (codexSandbox === 'danger-full-access') {
 			const approval = assertHighAgencyWorkerAllowed(resolvedWorkspace);
 			onEvent(

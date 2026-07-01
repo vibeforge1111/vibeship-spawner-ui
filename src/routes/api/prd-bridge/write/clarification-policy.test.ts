@@ -79,6 +79,12 @@ describe('PRD bridge clarification policy', () => {
 		);
 		expect(
 			_resolvePrdCodexCommandTemplate('gpt-5.5', {
+				SPARK_CODEX_SANDBOX: 'danger-full-access',
+				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '1'
+			})
+		).toBe('codex exec --model gpt-5.5 --profile speed --sandbox danger-full-access');
+		expect(
+			_resolvePrdCodexCommandTemplate('gpt-5.5', {
 				SPAWNER_PRD_CODEX_COMMAND_TEMPLATE: 'codex exec --model {model} --sandbox workspace-write'
 			})
 		).toBe('codex exec --model gpt-5.5 --sandbox workspace-write');

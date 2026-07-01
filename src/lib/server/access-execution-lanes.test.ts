@@ -196,7 +196,7 @@ describe('recommendAccessExecutionLane', () => {
 		});
 	});
 
-	it('allows Level 5 whole-computer mode only after all runtime guardrails are active', () => {
+	it('allows Level 5 whole-computer mode as a full-access lane only after all runtime guardrails are active', () => {
 		const result = recommendAccessExecutionLane({
 			accessLevel: 5,
 			env: {
@@ -213,7 +213,7 @@ describe('recommendAccessExecutionLane', () => {
 			setupMode: 'automatic',
 			available: true,
 			sparkCliAction: 'spark access status --level 5',
-			runPolicy: 'auto_read_only',
+			runPolicy: 'auto_safe',
 			rollback: 'spark access disable-level5'
 		});
 	});

@@ -1,10 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { providerRuntime, reconcileStaleProviderResults } from './provider-runtime';
 import { sparkAgentBridge } from '$lib/services/spark-agent-bridge';
 import { eventBridge, type BridgeEvent } from '$lib/services/event-bridge';
 import type { MultiLLMExecutionPack, MultiLLMProviderConfig } from '$lib/services/multi-llm-orchestrator';
 import { mcpClient, type Mission } from '$lib/services/mcp-client';
 import { buildServerGovernorDecisionAuthority } from './harness-authority';
+
+const originalSparkHome = process.env.SPARK_HOME;
+const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+const originalHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalExternalProjectPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+const cleanupPaths: string[] = [];
 
 function provider(id: 'claude' | 'codex', model: string): MultiLLMProviderConfig {
 	return {
@@ -60,6 +69,20 @@ function controlAuthority() {
 	});
 }
 
+function restoreEnv(name: string, value: string | undefined): void {
+	if (value === undefined) delete process.env[name];
+	else process.env[name] = value;
+}
+
+function isolateDefaultWorkerEnv(): void {
+	const sparkHome = mkdtempSync(join(tmpdir(), 'spark-provider-runtime-home-'));
+	cleanupPaths.push(sparkHome);
+	process.env.SPARK_HOME = sparkHome;
+	delete process.env.SPARK_CODEX_SANDBOX;
+	delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+	delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+}
+
 async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 	const start = Date.now();
 	while (!fn()) {
@@ -73,6 +96,13 @@ async function waitFor(fn: () => boolean, timeoutMs = 1500): Promise<void> {
 afterEach(() => {
 	sparkAgentBridge.resetForTests();
 	vi.restoreAllMocks();
+	restoreEnv('SPARK_HOME', originalSparkHome);
+	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalHighAgencyWorkers);
+	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalExternalProjectPaths);
+	for (const path of cleanupPaths.splice(0)) {
+		rmSync(path, { recursive: true, force: true });
+	}
 	providerRuntime.cleanup('mission-step2-success');
 	providerRuntime.cleanup('mission-step2-failure');
 	providerRuntime.cleanup('mission-step2-cancel');
@@ -245,6 +275,7 @@ describe('provider-runtime Spark agent bridge', () => {
 	});
 
 	it('passes explicit workspace-write sandboxing to Codex workers', async () => {
+		isolateDefaultWorkerEnv();
 		let observedCommandTemplate = '';
 		sparkAgentBridge.setWorkerExecutorForTests(async (context) => {
 			observedCommandTemplate = context.commandTemplate;

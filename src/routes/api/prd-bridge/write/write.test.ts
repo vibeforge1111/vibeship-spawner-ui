@@ -15,6 +15,8 @@ import {
 } from './+server';
 
 let testSpawnerDir = '';
+let testChipsRoot = '';
+const originalChipsRoot = process.env.SPARK_DOMAIN_CHIPS_ROOT;
 
 function testPrdBridgePaths(pendingPrdFile: string) {
 	return {
@@ -30,6 +32,8 @@ function testPrdBridgePaths(pendingPrdFile: string) {
 describe('PRD bridge fallback analysis', () => {
 	beforeEach(async () => {
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-write-'));
+		testChipsRoot = await mkdtemp(path.join(tmpdir(), 'spawner-prd-chips-'));
+		process.env.SPARK_DOMAIN_CHIPS_ROOT = testChipsRoot;
 		await mkdir(path.join(testSpawnerDir, 'results'), { recursive: true });
 	});
 
@@ -37,7 +41,44 @@ describe('PRD bridge fallback analysis', () => {
 		if (testSpawnerDir && existsSync(testSpawnerDir)) {
 			await rm(testSpawnerDir, { recursive: true, force: true });
 		}
+		if (testChipsRoot && existsSync(testChipsRoot)) {
+			await rm(testChipsRoot, { recursive: true, force: true });
+		}
+		if (originalChipsRoot === undefined) delete process.env.SPARK_DOMAIN_CHIPS_ROOT;
+		else process.env.SPARK_DOMAIN_CHIPS_ROOT = originalChipsRoot;
 	});
+
+	async function writePrdWritingLoopRuntime() {
+		const chipRoot = path.join(testChipsRoot, 'domain-chip-prd-writing-proof-loop');
+		await mkdir(path.join(chipRoot, 'distilled-runtime'), { recursive: true });
+		await writeFile(
+			path.join(chipRoot, 'spark-chip.json'),
+			JSON.stringify({
+				chip_name: 'domain-chip-prd-writing-proof-loop',
+				domain: 'PRD Writing',
+				commands: {
+					'loop-round': {},
+					'long-loop-trend': { required_rounds: 5 }
+				}
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(chipRoot, 'distilled-runtime', 'prd-writing-fast-path.json'),
+			JSON.stringify({
+				schema_version: 'spark-domain-chip.distilled_runtime.v1',
+				domain: 'PRD Writing',
+				runtime_path: 'distilled-runtime/prd-writing-fast-path.json',
+				runtime_state: 'private_candidate_local_telegram_handler_passed_live_telegram_proven',
+				distilled_lessons: [
+					'Start PRDs with user, problem, value, scope, non-goals, workflow, data, risks, acceptance tests, and benchmark plan.',
+					'Ask only the missing questions that materially change product behavior, then draft with explicit assumptions.'
+				],
+				reloop_triggers: ['held-out PRD case score drops below 8.0']
+			}),
+			'utf-8'
+		);
+	}
 
 	it('builds mission execution authority verdict metadata without storing prompt content', () => {
 		const verdict = _buildAuthorityVerdict({
@@ -102,6 +143,43 @@ describe('PRD bridge fallback analysis', () => {
 		expect(tasks[3].dependencies).toEqual(expect.arrayContaining([tasks[1].id, tasks[2].id]));
 		expect(tasks.every((task) => task.workspaceTargets.includes('C:\\Users\\USER\\Desktop\\spark-telegram-unit-smoke'))).toBe(true);
 		expect(tasks.flatMap((task) => task.verificationCommands).join('\n')).toContain('node --check');
+	});
+
+	it('reuses PRD Writing loop distillation in Spawner fallback analysis without rerunning a loop', async () => {
+		await writePrdWritingLoopRuntime();
+		const pendingPrdFile = path.join(testSpawnerDir, 'pending-prd.md');
+		await writeFile(
+			pendingPrdFile,
+			[
+				'Write a PRD for reducing invoice export failures for finance admins after CSV jobs time out.',
+				'Include owner, affected user, acceptance tests, rollback, launch risk, and benchmark plan.',
+				'Do not run a benchmark, loop, schedule, activation, mission, or publication during this planning turn.'
+			].join('\n'),
+			'utf-8'
+		);
+
+		const result = await _buildFallbackAnalysisResult(
+			'spawner-prd-distilled-reuse-test',
+			'Invoice Export Reliability PRD',
+			'advanced_prd',
+			'pro',
+			testPrdBridgePaths(pendingPrdFile),
+			'advanced_prd'
+		);
+
+		expect(String(result.executionPrompt)).toContain('Loop Engineering PRD Writing lesson');
+		expect(String(result.executionPrompt)).toContain('acceptance tests, and benchmark plan');
+		expect(result.metadata).toMatchObject({
+			loopEngineering: {
+				appliedChipId: 'domain-chip-prd-writing-proof-loop',
+				source: 'loop-engineering-chip',
+				noLoopRerun: true,
+				reusedDistilledLessons: expect.arrayContaining([
+					expect.stringContaining('Start PRDs with user, problem, value')
+				]),
+				reloopTriggers: ['held-out PRD case score drops below 8.0']
+			}
+		});
 	});
 
 	it('does not use deterministic fallback for fast direct app builds', () => {

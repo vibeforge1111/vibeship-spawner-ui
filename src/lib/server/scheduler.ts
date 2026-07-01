@@ -10,6 +10,7 @@ import {
   resolveExecutionAuthority,
   type HarnessAuthorityVerdict
 } from './harness-authority';
+import { fireLoopSchedule, safeLoopEngineeringChipKey } from './loop-engineering-control-plane';
 import { parseJsonOrFallback } from '$lib/utils/safe-json';
 
 function _envVar(name: string): string | undefined {
@@ -232,11 +233,19 @@ async function _fire(record: ScheduleRecord): Promise<{ ok: boolean; summary: st
     };
   }
   if (record.action === 'loop') {
-    const chipKey = String(record.payload.chipKey ?? '');
+    const chipKey = safeLoopEngineeringChipKey(String(record.payload.chipKey ?? ''));
     if (!chipKey) return { ok: false, summary: 'loop has no chipKey' };
+    const scheduleId = String(record.payload.loopScheduleId ?? record.payload.scheduleId ?? '').trim();
+    if (!scheduleId) return { ok: false, summary: 'loop has no loopScheduleId' };
+    const result = await fireLoopSchedule({
+      chipKey,
+      scheduleId,
+      sourceSurface: 'scheduler',
+      requestId: `scheduler:${record.id}:${record.fireCount + 1}`
+    });
     return {
-      ok: false,
-      summary: 'scheduled loop fire requires fresh Governor authority; stored schedule authority is evidence only'
+      ok: true,
+      summary: `completed private loop ${result.event.id} for ${chipKey}`
     };
   }
   return { ok: false, summary: `unknown action ${record.action}` };

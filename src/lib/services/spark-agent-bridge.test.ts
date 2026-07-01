@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import { buildServerGovernorDecisionAuthority } from '$lib/server/harness-author
 import {
 	parseProviderCommand,
 	prepareProviderWorkingDirectory,
+	providerWorkerEnvForCommand,
 	providerProcessFailureMessage,
 	providerProcessTimeoutMessage,
 	providerProcessTimeoutMs,
@@ -147,30 +148,118 @@ describe('prepareProviderWorkingDirectory', () => {
 
 describe('parseProviderCommand', () => {
 	it('allows codex profile selection while preserving sandbox enforcement', () => {
-		const command = parseProviderCommand(
-			'codex',
-			'codex exec --model gpt-5.5 --profile speed --sandbox workspace-write'
-		);
+		const originalSparkHome = process.env.SPARK_HOME;
+		const originalHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+		const originalExternalPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+		const sparkHome = mkdtempSync(join(tmpdir(), 'spark-provider-no-level5-'));
+		createdDirs.push(sparkHome);
+		process.env.SPARK_HOME = sparkHome;
+		delete process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+		delete process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		delete process.env.SPARK_CODEX_SANDBOX;
 
-		expect(command).toMatchObject({
-			binary: 'codex',
-			args: [
-				'exec',
-				'--skip-git-repo-check',
-				'--model',
-				'gpt-5.5',
-				'--profile',
-				'speed',
-				'--sandbox',
-				'workspace-write'
-			]
-		});
+		try {
+			const command = parseProviderCommand(
+				'codex',
+				'codex exec --model gpt-5.5 --profile speed --sandbox workspace-write'
+			);
+
+			expect(command).toMatchObject({
+				binary: 'codex',
+				args: [
+					'exec',
+					'--skip-git-repo-check',
+					'--model',
+					'gpt-5.5',
+					'--profile',
+					'speed',
+					'--sandbox',
+					'workspace-write'
+				]
+			});
+		} finally {
+			restoreEnv('SPARK_HOME', originalSparkHome);
+			restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalHighAgencyWorkers);
+			restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalExternalPaths);
+			restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+		}
+	});
+
+	it('promotes default Codex provider commands from stale read-only env when persisted Level 5 is active', () => {
+		const originalSparkHome = process.env.SPARK_HOME;
+		const originalHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+		const originalExternalPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+		const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
+		const sparkHome = mkdtempSync(join(tmpdir(), 'spark-provider-default-level5-'));
+		createdDirs.push(sparkHome);
+		mkdirSync(join(sparkHome, 'config', 'modules'), { recursive: true });
+		writeFileSync(
+			join(sparkHome, 'config', 'modules', 'spawner-ui.env'),
+			[
+				'SPARK_ALLOW_HIGH_AGENCY_WORKERS=1',
+				'SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1',
+				'SPARK_CODEX_SANDBOX=danger-full-access',
+				''
+			].join('\n')
+		);
+		process.env.SPARK_HOME = sparkHome;
+		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '0';
+		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '0';
+		process.env.SPARK_CODEX_SANDBOX = 'read-only';
+
+		try {
+			const command = parseProviderCommand('codex', 'codex exec --model gpt-5.5');
+
+			expect(command).toMatchObject({
+				binary: 'codex',
+				args: ['exec', '--skip-git-repo-check', '--model', 'gpt-5.5', '--sandbox', 'danger-full-access']
+			});
+		} finally {
+			restoreEnv('SPARK_HOME', originalSparkHome);
+			restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalHighAgencyWorkers);
+			restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalExternalPaths);
+			restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
+		}
 	});
 
 	it('rejects unsupported codex command flags', () => {
 		expect(() =>
 			parseProviderCommand('codex', 'codex exec --model gpt-5.5 --profile speed --output json')
 		).toThrow('Codex provider command must be');
+	});
+
+	it('carries persisted Level 5 guardrails into high-agency provider worker env', () => {
+		const sparkHome = mkdtempSync(join(tmpdir(), 'spark-agent-worker-level5-'));
+		createdDirs.push(sparkHome);
+		mkdirSync(join(sparkHome, 'config', 'modules'), { recursive: true });
+		writeFileSync(
+			join(sparkHome, 'config', 'modules', 'spawner-ui.env'),
+			[
+				'SPARK_ALLOW_HIGH_AGENCY_WORKERS=1',
+				'SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1',
+				'SPARK_CODEX_SANDBOX=danger-full-access',
+				''
+			].join('\n')
+		);
+
+		const env = providerWorkerEnvForCommand(
+			{
+				binary: 'codex',
+				resolvedBinary: 'codex',
+				args: ['exec', '--skip-git-repo-check', '--model', 'gpt-5.5', '--sandbox', 'danger-full-access']
+			},
+			{
+				SPARK_HOME: sparkHome,
+				SPARK_ALLOW_HIGH_AGENCY_WORKERS: '0',
+				SPARK_ALLOW_EXTERNAL_PROJECT_PATHS: '0',
+				SPARK_CODEX_SANDBOX: 'workspace-write'
+			}
+		);
+
+		expect(env.SPARK_ALLOW_HIGH_AGENCY_WORKERS).toBe('1');
+		expect(env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS).toBe('1');
+		expect(env.SPARK_CODEX_SANDBOX).toBe('danger-full-access');
 	});
 });
 

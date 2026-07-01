@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { delimiter, join } from 'node:path';
 import {
 	AccessExecutionPolicyError,
 	runAccessExecutionAction,
@@ -6,6 +9,11 @@ import {
 } from './access-execution-actions';
 
 const originalSparkCliPath = process.env.SPARK_CLI_PATH;
+const originalPath = process.env.PATH;
+const originalSparkHome = process.env.SPARK_HOME;
+const originalHighAgencyWorkers = process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS;
+const originalExternalPaths = process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS;
+const originalCodexSandbox = process.env.SPARK_CODEX_SANDBOX;
 
 function restoreEnv(name: string, value: string | undefined): void {
 	if (value === undefined) delete process.env[name];
@@ -26,6 +34,11 @@ function okRunner(calls: Array<{ command: string; args: string[]; timeoutMs: num
 
 afterEach(() => {
 	restoreEnv('SPARK_CLI_PATH', originalSparkCliPath);
+	restoreEnv('PATH', originalPath);
+	restoreEnv('SPARK_HOME', originalSparkHome);
+	restoreEnv('SPARK_ALLOW_HIGH_AGENCY_WORKERS', originalHighAgencyWorkers);
+	restoreEnv('SPARK_ALLOW_EXTERNAL_PROJECT_PATHS', originalExternalPaths);
+	restoreEnv('SPARK_CODEX_SANDBOX', originalCodexSandbox);
 });
 
 describe('runAccessExecutionAction', () => {
@@ -113,6 +126,57 @@ describe('runAccessExecutionAction', () => {
 			['access', 'setup', '--level', '5', '--enable-high-agency', '--json'],
 			['access', 'disable-level5', '--json']
 		]);
+	});
+
+	it('promotes stale read-only service env for Spawner access actions when persisted Level 5 is active', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'spawner-access-action-level5-'));
+		const binDir = join(root, 'bin');
+		const sparkHome = join(root, 'spark-home');
+		const moduleDir = join(sparkHome, 'config', 'modules');
+		const capturePath = join(root, 'env.json');
+		try {
+			mkdirSync(binDir, { recursive: true });
+			mkdirSync(moduleDir, { recursive: true });
+			writeFileSync(
+				join(moduleDir, 'spawner-ui.env'),
+				[
+					'SPARK_ALLOW_HIGH_AGENCY_WORKERS=1',
+					'SPARK_ALLOW_EXTERNAL_PROJECT_PATHS=1',
+					'SPARK_CODEX_SANDBOX=danger-full-access',
+					''
+				].join('\n'),
+				'utf8'
+			);
+			writeFileSync(
+				join(binDir, 'spark-test-bin'),
+				[
+					'#!/bin/sh',
+					`printf '{"sandbox":"%s","highAgency":"%s","externalPaths":"%s"}\\n' "$SPARK_CODEX_SANDBOX" "$SPARK_ALLOW_HIGH_AGENCY_WORKERS" "$SPARK_ALLOW_EXTERNAL_PROJECT_PATHS" > "${capturePath.replace(/"/g, '\\"')}"`,
+					'printf \'{"ok":true,"effective_access_level":5}\\n\'',
+					''
+				].join('\n'),
+				'utf8'
+			);
+			chmodSync(join(binDir, 'spark-test-bin'), 0o755);
+			process.env.SPARK_CLI_PATH = 'spark-test-bin';
+			process.env.PATH = `${binDir}${delimiter}${originalPath || ''}`;
+			process.env.SPARK_HOME = sparkHome;
+			process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '0';
+			process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '0';
+			process.env.SPARK_CODEX_SANDBOX = 'read-only';
+
+			const result = await runAccessExecutionAction('workspace_setup');
+			const childEnv = JSON.parse(readFileSync(capturePath, 'utf8')) as Record<string, string>;
+
+			expect(result.success).toBe(true);
+			expect(childEnv).toEqual({
+				sandbox: 'danger-full-access',
+				highAgency: '1',
+				externalPaths: '1'
+			});
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it('rejects unsupported action ids instead of executing client-supplied commands', async () => {

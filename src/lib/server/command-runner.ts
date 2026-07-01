@@ -10,6 +10,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, dirname, join, isAbsolute, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { commandTimeoutMs } from './timeout-config';
+import { effectiveLevel5Env } from './high-agency-workers';
 import { externalProjectPathsAllowed, resolveContainedPath, sparkWorkspaceRoot } from './spark-run-workspace';
 
 export const MAX_OUTPUT_LENGTH = 5000;
@@ -40,9 +41,10 @@ export function validateProjectPath(projectPath: string): { valid: boolean; erro
 	if (!existsSync(projectPath)) {
 		return { valid: false, error: `Project directory does not exist: ${projectPath}` };
 	}
-	if (!externalProjectPathsAllowed()) {
+	const effectiveEnv = effectiveLevel5Env();
+	if (!externalProjectPathsAllowed(effectiveEnv)) {
 		try {
-			resolveContainedPath(sparkWorkspaceRoot(), projectPath, 'Project path');
+			resolveContainedPath(sparkWorkspaceRoot(effectiveEnv), projectPath, 'Project path');
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			return { valid: false, error: message };

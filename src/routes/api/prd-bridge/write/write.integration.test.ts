@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'fs';
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { POST } from './+server';
@@ -19,8 +19,10 @@ const { PRIVATE_ENV } = vi.hoisted(() => ({
 vi.mock('$env/dynamic/private', () => ({ env: PRIVATE_ENV }));
 
 let testSpawnerDir: string;
+let testChipsRoot: string;
 const originalProvider = process.env.SPARK_MISSION_LLM_PROVIDER;
 const originalStateDir = process.env.SPAWNER_STATE_DIR;
+const originalChipsRoot = process.env.SPARK_DOMAIN_CHIPS_ROOT;
 const BRIDGE_TEST_KEY = 'bridge-test-key';
 const originalBridgeKey = process.env.SPARK_BRIDGE_API_KEY;
 
@@ -50,8 +52,13 @@ async function resetTestSpawnerDir() {
 	if (testSpawnerDir && existsSync(testSpawnerDir)) {
 		await rm(testSpawnerDir, { recursive: true, force: true });
 	}
+	if (testChipsRoot && existsSync(testChipsRoot)) {
+		await rm(testChipsRoot, { recursive: true, force: true });
+	}
 	if (originalStateDir === undefined) delete process.env.SPAWNER_STATE_DIR;
 	else process.env.SPAWNER_STATE_DIR = originalStateDir;
+	if (originalChipsRoot === undefined) delete process.env.SPARK_DOMAIN_CHIPS_ROOT;
+	else process.env.SPARK_DOMAIN_CHIPS_ROOT = originalChipsRoot;
 	if (originalProvider === undefined) delete process.env.SPARK_MISSION_LLM_PROVIDER;
 	else process.env.SPARK_MISSION_LLM_PROVIDER = originalProvider;
 	if (originalBridgeKey === undefined) delete process.env.SPARK_BRIDGE_API_KEY;
@@ -62,7 +69,9 @@ describe('/api/prd-bridge/write integration', () => {
 	beforeEach(async () => {
 		await resetTestSpawnerDir();
 		testSpawnerDir = await mkdtemp(path.join(tmpdir(), 'spawner-prd-write-'));
+		testChipsRoot = await mkdtemp(path.join(tmpdir(), 'spawner-prd-chips-'));
 		process.env.SPAWNER_STATE_DIR = testSpawnerDir;
+		process.env.SPARK_DOMAIN_CHIPS_ROOT = testChipsRoot;
 		process.env.SPARK_BRIDGE_API_KEY = BRIDGE_TEST_KEY;
 		vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
 	});
@@ -156,6 +165,31 @@ describe('/api/prd-bridge/write integration', () => {
 		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
 		const requestId = 'tg-build-smoke-fallback-test';
 		const traceRef = 'trace:spawner-prd:mission-tg-build-smoke-fallback-test';
+		const harnessProofRef = 'turn:sha256:0123456789abcdef';
+		const harnessProofCapsule = {
+			schema: 'spark.harness_proof.v1',
+			turnRef: harnessProofRef,
+			route: 'spawner.build',
+			owner: 'spawner-ui',
+			intent: { kind: 'spawner.build', confidence: 'high', noExecution: false },
+			authority: {
+				decision: 'allowed',
+				contract: 'spark.turn_intent.v1',
+				riskTier: 'execute',
+				reasonSummary: 'Telegram build dispatch was authorized by fresh Harness authority.'
+			},
+			governor: { decision: 'allow', verified: true },
+			execution: { status: 'started', tool: 'spawner.run', mutationClass: 'launches_mission' },
+			reply: { delivered: true, shape: 'natural', rawReasonsHidden: true },
+			joins: {
+				telegram: 'joined',
+				builder: 'not_applicable',
+				spawner: 'joined',
+				provider: 'not_applicable',
+				memory: 'not_applicable',
+				voice: 'not_applicable'
+			}
+		};
 		const capabilityProposalPacket = {
 			schema_version: 'spark.capability_proposal.v1',
 			status: 'proposal_plan_only',
@@ -183,6 +217,8 @@ describe('/api/prd-bridge/write integration', () => {
 					chatId: 'telegram-chat-1',
 					userId: 'telegram-user-1',
 					traceRef,
+					harnessProofRef,
+					harnessProofCapsule,
 					runnerCapability,
 					capabilityProposalPacket,
 					executionAuthority: writeAuthority(requestId)
@@ -203,7 +239,11 @@ describe('/api/prd-bridge/write integration', () => {
 		expect(storedResult.executionPrompt).toBeUndefined();
 		const pendingMeta = JSON.parse(await readFile(path.join(testSpawnerDir, 'pending-request.json'), 'utf-8'));
 		expect(pendingMeta.traceRef).toBe(traceRef);
+		expect(pendingMeta.harnessProofRef).toBe(harnessProofRef);
+		expect(pendingMeta.proofCapsule).toMatchObject({ schema: 'spark.harness_proof.v1', turnRef: harnessProofRef });
 		expect(pendingMeta.relay.traceRef).toBe(traceRef);
+		expect(pendingMeta.relay.harnessProofRef).toBe(harnessProofRef);
+		expect(pendingMeta.relay.proofCapsule).toMatchObject({ schema: 'spark.harness_proof.v1', turnRef: harnessProofRef });
 		expect(pendingMeta.runnerCapability).toMatchObject(runnerCapability);
 		expect(pendingMeta.relay.runnerCapability).toMatchObject(runnerCapability);
 		expect(pendingMeta.capabilityProposalPacket).toMatchObject(capabilityProposalPacket);
@@ -213,6 +253,93 @@ describe('/api/prd-bridge/write integration', () => {
 			implementationRoute: 'domain_chip',
 			ledgerKey: 'domain_chip:cafe-memory-reporter',
 			ownerSystem: 'Spark domain chip runtime'
+		});
+		const traceRows = (await readFile(path.join(testSpawnerDir, 'prd-auto-trace.jsonl'), 'utf-8'))
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
+		expect(traceRows.length).toBeGreaterThan(0);
+		expect(traceRows.every((row) => row.harnessProofRef === harnessProofRef)).toBe(true);
+		expect(traceRows.every((row) => row.proofCapsule?.schema === 'spark.harness_proof.v1')).toBe(true);
+		expect(traceRows.every((row) => row.proofCapsule?.turnRef === harnessProofRef)).toBe(true);
+		expect(traceRows.every((row) => row.proofStatus === undefined)).toBe(true);
+		const serializedTraceRows = JSON.stringify(traceRows);
+		expect(serializedTraceRows).not.toContain(testSpawnerDir);
+		expect(serializedTraceRows).not.toMatch(/\/Users\/|\/var\/folders\/|file:\/\//);
+		expect(serializedTraceRows).toMatch(/path:sha256:[a-f0-9]{16}/);
+		expect(traceRows.find((row) => row.event === 'fallback_analysis_written')?.resultFile).toMatch(
+			/^path:sha256:[a-f0-9]{16}$/
+		);
+	});
+
+	it('persists PRD Writing distilled reuse metadata through the real write route', async () => {
+		process.env.SPARK_MISSION_LLM_PROVIDER = 'zai';
+		const requestId = 'spawner-prd-distilled-reuse-route-test';
+		const chipRoot = path.join(testChipsRoot, 'domain-chip-prd-writing-proof-loop');
+		await mkdir(path.join(chipRoot, 'distilled-runtime'), { recursive: true });
+		await writeFile(
+			path.join(chipRoot, 'spark-chip.json'),
+			JSON.stringify({
+				chip_name: 'domain-chip-prd-writing-proof-loop',
+				domain: 'PRD Writing',
+				commands: {
+					'loop-round': {},
+					'long-loop-trend': { required_rounds: 5 }
+				}
+			}),
+			'utf-8'
+		);
+		await writeFile(
+			path.join(chipRoot, 'distilled-runtime', 'prd-writing-fast-path.json'),
+			JSON.stringify({
+				runtime_state: 'private_candidate_local_telegram_handler_passed_live_telegram_proven',
+				runtime_path: 'distilled-runtime/prd-writing-fast-path.json',
+				distilled_lessons: [
+					'Start PRDs with user, problem, value, scope, non-goals, workflow, data, risks, acceptance tests, and benchmark plan.',
+					'Ask only the missing questions that materially change product behavior, then draft with explicit assumptions.'
+				],
+				reloop_triggers: ['held-out PRD case score drops below 8.0']
+			}),
+			'utf-8'
+		);
+
+		const response = await POST({
+			request: new Request('http://localhost/api/prd-bridge/write', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'x-api-key': BRIDGE_TEST_KEY },
+				body: JSON.stringify({
+					content: [
+						'# Invoice Export Reliability PRD',
+						'Write a PRD for reducing invoice export failures for finance admins after CSV jobs time out.',
+						'Include owner, affected user, problem, scope, non-goals, acceptance tests, rollback, launch risk, and benchmark plan.',
+						'Use the PRD Writing domain chip guidance if it fits, but do not run a benchmark, loop, schedule, activation, mission, or publication.'
+					].join('\n\n'),
+					requestId,
+					projectName: 'Invoice Export Reliability PRD',
+					buildMode: 'advanced_prd',
+					buildLane: 'advanced_prd',
+					tier: 'pro',
+					forceDispatch: true,
+					executionAuthority: writeAuthority(requestId)
+				})
+			}),
+			getClientAddress: () => '127.0.0.1'
+		} as never);
+
+		const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.autoAnalysis).toMatchObject({ provider: 'zai', started: false });
+		const storedResult = JSON.parse(await readFile(path.join(testSpawnerDir, 'results', `${requestId}.json`), 'utf-8'));
+		expect(storedResult.executionPrompt).toBeUndefined();
+		expect(storedResult.instructionTextRedacted).toBe(true);
+		expect(storedResult.metadata.loopEngineering).toMatchObject({
+			appliedChipId: 'domain-chip-prd-writing-proof-loop',
+			source: 'loop-engineering-chip',
+			noLoopRerun: true,
+			reloopTriggers: ['held-out PRD case score drops below 8.0'],
+			reusedDistilledLessons: expect.arrayContaining([
+				expect.stringContaining('Start PRDs with user, problem, value')
+			])
 		});
 	});
 
@@ -323,6 +450,14 @@ describe('/api/prd-bridge/write integration', () => {
 			.trim()
 			.split('\n')
 			.map((line) => JSON.parse(line));
+		expect(JSON.stringify(traceRows)).not.toContain(testSpawnerDir);
+		expect(JSON.stringify(traceRows)).not.toContain(targetFolder);
+		expect(traceRows.every((row) => row.proofStatus === 'missing_harness_authority')).toBe(true);
+		expect(traceRows.every((row) => row.proofStorage === 'source_gap_capsule')).toBe(true);
+		expect(traceRows.every((row) => row.proofCapsule?.schema === 'spark.harness_proof.v1')).toBe(true);
+		expect(traceRows.every((row) => row.proofCapsule?.authority?.contract === 'none')).toBe(true);
+		expect(traceRows.every((row) => row.proofCapsule?.governor?.verified === false)).toBe(true);
+		expect(traceRows.every((row) => /^turn:sha256:[a-f0-9]{16}$/.test(row.harnessProofRef))).toBe(true);
 		expect(traceRows.find((row) => row.event === 'authority_verdict_evaluated')).toMatchObject({
 			traceRef,
 			authorityVerdict: {

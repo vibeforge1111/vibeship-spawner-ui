@@ -200,7 +200,9 @@ describe('PRD auto-dispatch helpers', () => {
 			{ SPAWNER_STATE_DIR: 'C:\\tmp\\spawner-state' }
 		);
 
-		expect(projectPath).toBe('C:\\tmp\\spawner-state\\generated-projects\\mission-1-spark-test');
+		expect(projectPath.replace(/\//g, '\\')).toBe(
+			'C:\\tmp\\spawner-state\\generated-projects\\mission-1-spark-test'
+		);
 	});
 
 	it('allows auto-dispatch only when the PRD load is runnable', () => {
@@ -277,7 +279,7 @@ describe('PRD auto-dispatch helpers', () => {
 		expect(result.authority?.source).toBe('governor_decision');
 	});
 
-	it('keeps direct mission Codex auto-dispatch workspace scoped despite legacy global sandbox env', async () => {
+	it('uses Level 5 Codex sandbox for direct mission auto-dispatch', async () => {
 		process.env.SPARK_CODEX_SANDBOX = 'danger-full-access';
 		process.env.SPARK_ALLOW_HIGH_AGENCY_WORKERS = '1';
 		process.env.SPARK_ALLOW_EXTERNAL_PROJECT_PATHS = '1';
@@ -296,7 +298,7 @@ describe('PRD auto-dispatch helpers', () => {
 		});
 
 		expect(result.started).toBe(true);
-		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --profile speed --sandbox workspace-write');
+		expect(observedCommandTemplate).toBe('codex exec --model gpt-5.5 --profile speed --sandbox danger-full-access');
 	});
 
 	it('passes configured provider API keys into auto-dispatch runtime', () => {

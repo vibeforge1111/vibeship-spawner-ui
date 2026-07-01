@@ -18,12 +18,12 @@
 </script>
 
 <nav class="h-[52px] sticky top-0 border-b border-surface-border bg-bg-primary z-50">
-	<div class="h-full max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6">
-		<div class="flex items-center gap-4">
+	<div class="h-full max-w-6xl mx-auto flex min-w-0 items-center justify-between gap-3 px-3 sm:px-6">
+		<div class="flex shrink-0 items-center gap-4">
 			<BrandLogo size="sm" />
 		</div>
 
-		<div class="flex items-center gap-1 sm:gap-2">
+		<div class="nav-scroll flex min-w-0 items-center gap-1 overflow-x-auto sm:gap-2">
 			{#if publicPreviewLocked}
 				<a
 					href="https://sparkswarm.ai/waitlist"
@@ -47,6 +47,14 @@
 				>
 					<Icon name="clipboard" size={14} class="nav-pop-icon" />
 					<span class="nav-pop-label hidden sm:inline">Kanban</span>
+				</a>
+
+				<a
+					href="/loops"
+					class="nav-pop group inline-flex items-center gap-2 px-2 py-2 font-sans text-[15px] font-medium text-text-secondary border border-transparent rounded-md sm:px-3.5"
+				>
+					<Icon name="brain" size={14} class="nav-pop-icon" />
+					<span class="nav-pop-label hidden sm:inline">Loops</span>
 				</a>
 
 				<a
@@ -87,6 +95,7 @@
 
 <style>
 	.nav-pop {
+		flex-shrink: 0;
 		position: relative;
 		overflow: hidden;
 		isolation: isolate;
@@ -95,6 +104,14 @@
 			border-color 220ms cubic-bezier(0.23, 1, 0.32, 1),
 			color 220ms cubic-bezier(0.23, 1, 0.32, 1),
 			transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+	}
+
+	.nav-scroll {
+		scrollbar-width: none;
+	}
+
+	.nav-scroll::-webkit-scrollbar {
+		display: none;
 	}
 
 	.nav-pop::before {

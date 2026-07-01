@@ -38,7 +38,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="{variantClasses[variant]} {className}"
+	class="min-w-0 max-w-full {variantClasses[variant]} {className}"
 	{onclick}
 >
 	{#if header}
@@ -47,7 +47,7 @@
 		</div>
 	{/if}
 
-	<div class={paddingClasses[padding]}>
+	<div class="min-w-0 {paddingClasses[padding]}">
 		{@render children()}
 	</div>
 
